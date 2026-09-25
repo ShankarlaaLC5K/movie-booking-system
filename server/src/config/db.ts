@@ -1,24 +1,24 @@
 import mongoose from "mongoose";
 
-const MONGO_URI = process.env.MONGO_URI;
-
-if (!MONGO_URI) {
-  throw new Error(
-    "MONGO_URI is missing in environment variables"
-  );
-}
-
 let cachedConnection: typeof mongoose | null = null;
 let cachedPromise: Promise<typeof mongoose> | null = null;
 
 export async function connectDB(): Promise<typeof mongoose> {
+  const mongoUri = process.env.MONGO_URI;
+
+  if (!mongoUri) {
+    throw new Error(
+      "MONGO_URI is missing in environment variables"
+    );
+  }
+
   if (cachedConnection) {
     return cachedConnection;
   }
 
   if (!cachedPromise) {
     cachedPromise = mongoose
-      .connect(MONGO_URI, {
+      .connect(mongoUri, {
         maxPoolSize: 10,
         serverSelectionTimeoutMS: 10000,
         socketTimeoutMS: 45000,
@@ -30,6 +30,7 @@ export async function connectDB(): Promise<typeof mongoose> {
         );
 
         cachedConnection = connection;
+
         return connection;
       })
       .catch((error) => {
