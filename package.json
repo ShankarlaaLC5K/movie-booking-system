@@ -1,0 +1,27 @@
+{
+  "name": "movie-booking-system",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ShankarlaaLC5K/movie-booking-system.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ShankarlaaLC5K/movie-booking-system/issues"
+  },
+  "homepage": "https://github.com/ShankarlaaLC5K/movie-booking-system#readme",
+  "dependencies": {
+    "serverless-http": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.163"
+  }
+}
