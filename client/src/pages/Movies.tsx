@@ -1,8 +1,8 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
-  type KeyboardEvent,
 } from "react";
 
 import {
@@ -16,11 +16,11 @@ import {
   Film,
   Filter,
   X,
-  ChevronLeft,
-  ChevronRight,
+  ArrowRight,
 } from "lucide-react";
 
 import {
+  getAvailableMovies,
   getMovies,
   searchMovies,
   type TMDBMovie,
@@ -33,7 +33,7 @@ const TMDB_IMAGE_BASE_URL =
 
 function getPosterUrl(
   posterPath?: string | null
-): string {
+) {
   if (!posterPath) {
     return "";
   }
@@ -46,9 +46,7 @@ function getPosterUrl(
   }
 
   return `${TMDB_IMAGE_BASE_URL}${
-    posterPath.startsWith("/")
-      ? ""
-      : "/"
+    posterPath.startsWith("/") ? "" : "/"
   }${posterPath}`;
 }
 
@@ -56,33 +54,16 @@ function Movies() {
   const [searchParams, setSearchParams] =
     useSearchParams();
 
-  const urlSearch =
-    searchParams.get("search") || "";
-
-  const urlPage = Math.max(
-    1,
-    Number(searchParams.get("page") || 1)
-  );
-
   const [movies, setMovies] =
+    useState<Movie[]>([]);
+
+  const [allMovies, setAllMovies] =
     useState<Movie[]>([]);
 
   const [searchResults, setSearchResults] =
     useState<TMDBMovie[]>([]);
 
   const [search, setSearch] =
-    useState(urlSearch);
-
-  const [searchPage, setSearchPage] =
-    useState(urlPage);
-
-  const [searchTotalPages, setSearchTotalPages] =
-    useState(1);
-
-  const [searching, setSearching] =
-    useState(false);
-
-  const [searchError, setSearchError] =
     useState("");
 
   const [genre, setGenre] =
@@ -94,8 +75,72 @@ function Movies() {
   const [loading, setLoading] =
     useState(true);
 
+  const [searching, setSearching] =
+    useState(false);
+
   const [error, setError] =
     useState("");
+
+  const [searchError, setSearchError] =
+    useState("");
+
+  const performSearch = useCallback(
+    async (query: string) => {
+      const normalizedQuery =
+        query.trim();
+
+      if (!normalizedQuery) {
+        setSearchResults([]);
+        setSearchError("");
+        setSearching(false);
+        return;
+      }
+
+      try {
+        setSearching(true);
+        setSearchError("");
+
+        const response =
+          await searchMovies(
+            normalizedQuery
+          );
+
+        const lowerQuery =
+          normalizedQuery.toLowerCase();
+
+        const results =
+          response.results
+            .filter((movie) => {
+              const title =
+                movie.title
+                  ?.trim()
+                  .toLowerCase() || "";
+
+              return title.includes(
+                lowerQuery
+              );
+            })
+            .slice(0, 12);
+
+        setSearchResults(results);
+      } catch (error: any) {
+        console.error(
+          "Failed to search movies:",
+          error
+        );
+
+        setSearchResults([]);
+
+        setSearchError(
+          error?.response?.data?.message ||
+            "Unable to search movies."
+        );
+      } finally {
+        setSearching(false);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -105,24 +150,35 @@ function Movies() {
         setLoading(true);
         setError("");
 
-        const response =
-          await getMovies();
+        const [
+          availableResponse,
+          allMoviesResponse,
+        ] = await Promise.all([
+          getAvailableMovies(),
+          getMovies(),
+        ]);
 
         if (cancelled) {
           return;
         }
 
-        const availableMovies =
-          response.movies.filter(
-            (movie) =>
-              movie.title
-                .trim()
-                .toLowerCase() !==
-              "avatar"
-          );
+        const removeAvatar = (
+          movie: Movie
+        ) =>
+          movie.title
+            .trim()
+            .toLowerCase() !== "avatar";
 
         setMovies(
-          availableMovies
+          availableResponse.movies.filter(
+            removeAvatar
+          )
+        );
+
+        setAllMovies(
+          allMoviesResponse.movies.filter(
+            removeAvatar
+          )
         );
       } catch (error: any) {
         if (cancelled) {
@@ -154,168 +210,61 @@ function Movies() {
 
   useEffect(() => {
     const query =
-      searchParams.get("search")?.trim() ||
-      "";
-
-    const page = Math.max(
-      1,
-      Number(
-        searchParams.get("page") || 1
-      )
-    );
-
-    setSearch(query);
-    setSearchPage(page);
+      searchParams
+        .get("search")
+        ?.trim() || "";
 
     if (!query) {
+      setSearch("");
       setSearchResults([]);
       setSearchError("");
-      setSearchTotalPages(1);
       setSearching(false);
-
       return;
     }
 
-    let cancelled = false;
+    setSearch(query);
 
-    const restoreSearch = async () => {
-      try {
-        setSearching(true);
-        setSearchError("");
+    void performSearch(query);
+  }, [
+    searchParams,
+    performSearch,
+  ]);
 
-        const response =
-          await searchMovies(
-            query,
-            page
-          );
-
-        if (cancelled) {
-          return;
-        }
-
-        setSearchResults(
-          response.results
-        );
-
-        setSearchPage(
-          response.page
-        );
-
-        setSearchTotalPages(
-          Math.min(
-            response.total_pages,
-            500
-          )
-        );
-      } catch (error: any) {
-        if (cancelled) {
-          return;
-        }
-
-        console.error(
-          "Failed to restore search:",
-          error
-        );
-
-        setSearchResults([]);
-
-        setSearchError(
-          error?.response?.data?.message ||
-            "Unable to load search results."
-        );
-
-        setSearchTotalPages(1);
-      } finally {
-        if (!cancelled) {
-          setSearching(false);
-        }
-      }
-    };
-
-    void restoreSearch();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [searchParams]);
-
-  const handleSearch = (
-    page = 1
-  ) => {
+  const handleSearch = () => {
     const query =
       search.trim();
 
     if (!query) {
       setSearchResults([]);
       setSearchError("");
-      setSearchPage(1);
-      setSearchTotalPages(1);
-
       setSearchParams({});
-
       return;
     }
 
     setSearchParams({
       search: query,
-      page: String(page),
     });
   };
 
   const handleSearchKeyDown = (
-    event: KeyboardEvent<HTMLInputElement>
+    event: React.KeyboardEvent<HTMLInputElement>
   ) => {
     if (event.key === "Enter") {
-      handleSearch(1);
+      handleSearch();
     }
-  };
-
-  const handleNextPage = () => {
-    if (
-      searching ||
-      searchPage >= searchTotalPages
-    ) {
-      return;
-    }
-
-    handleSearch(
-      searchPage + 1
-    );
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  };
-
-  const handlePreviousPage = () => {
-    if (
-      searching ||
-      searchPage <= 1
-    ) {
-      return;
-    }
-
-    handleSearch(
-      searchPage - 1
-    );
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
   };
 
   const releaseYears = useMemo(() => {
-    const years = movies
+    const years = allMovies
       .map((movie) => {
         if (!movie.releaseDate) {
           return null;
         }
 
-        const year = new Date(
-          movie.releaseDate
-        ).getFullYear();
+        const year =
+          new Date(
+            movie.releaseDate
+          ).getFullYear();
 
         return Number.isNaN(year)
           ? null
@@ -331,21 +280,20 @@ function Movies() {
     ).sort(
       (a, b) => b - a
     );
-  }, [movies]);
+  }, [allMovies]);
 
   const genres = useMemo(() => {
     const genreSet =
       new Set<string>();
 
-    movies.forEach((movie) => {
+    allMovies.forEach((movie) => {
       movie.genres?.forEach(
         (movieGenre) => {
-          if (
-            movieGenre.trim()
-          ) {
-            genreSet.add(
-              movieGenre.trim()
-            );
+          const cleaned =
+            movieGenre.trim();
+
+          if (cleaned) {
+            genreSet.add(cleaned);
           }
         }
       );
@@ -353,8 +301,10 @@ function Movies() {
 
     return Array.from(
       genreSet
-    ).sort();
-  }, [movies]);
+    ).sort((a, b) =>
+      a.localeCompare(b)
+    );
+  }, [allMovies]);
 
   const filteredMovies = useMemo(() => {
     return movies.filter((movie) => {
@@ -369,20 +319,19 @@ function Movies() {
           )
         );
 
-      const matchesReleaseYear =
+      const matchesYear =
         !releaseYear ||
-        Boolean(
-          movie.releaseDate &&
-            String(
+        (movie.releaseDate
+          ? String(
               new Date(
                 movie.releaseDate
               ).getFullYear()
             ) === releaseYear
-        );
+          : false);
 
       return (
         matchesGenre &&
-        matchesReleaseYear
+        matchesYear
       );
     });
   }, [
@@ -391,40 +340,36 @@ function Movies() {
     releaseYear,
   ]);
 
-  const hasActiveFilters =
-    Boolean(
-      genre || releaseYear
-    );
-
-  const isSearchMode =
-    search.trim().length > 0;
+  const clearSearch = () => {
+    setSearch("");
+    setSearchResults([]);
+    setSearchError("");
+    setSearchParams({});
+  };
 
   const clearFilters = () => {
     setGenre("");
     setReleaseYear("");
   };
 
-  const clearSearch = () => {
-    setSearch("");
-    setSearchResults([]);
-    setSearchError("");
-    setSearchPage(1);
-    setSearchTotalPages(1);
+  const isSearchMode =
+    search.trim().length > 0;
 
-    setSearchParams({});
-  };
+  const hasActiveFilters =
+    Boolean(
+      genre ||
+        releaseYear
+    );
 
   return (
     <section className="min-h-[calc(100vh-140px)] bg-slate-50 px-4 py-10 text-slate-900 dark:bg-slate-950 dark:text-white">
       <div className="mx-auto max-w-7xl">
-
-        {/* Header */}
         <div className="mb-8">
           <p className="text-sm font-semibold uppercase tracking-wider text-red-500">
             Discover
           </p>
 
-          <h1 className="mt-2 text-3xl font-bold text-slate-900 dark:text-white sm:text-4xl">
+          <h1 className="mt-2 text-3xl font-bold sm:text-4xl">
             Movies
           </h1>
 
@@ -433,13 +378,9 @@ function Movies() {
           </p>
         </div>
 
-        {/* Search + Filters */}
         <div className="mb-10 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
-
           <div className="flex flex-col gap-3 sm:flex-row">
-
             <div className="flex flex-1 items-center rounded-xl border border-slate-300 bg-slate-50 px-4 dark:border-slate-700 dark:bg-slate-950">
-
               <Search
                 size={20}
                 className="mr-3 shrink-0 text-slate-500"
@@ -469,14 +410,11 @@ function Movies() {
                   <X size={18} />
                 </button>
               )}
-
             </div>
 
             <button
               type="button"
-              onClick={() =>
-                handleSearch(1)
-              }
+              onClick={handleSearch}
               disabled={searching}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-6 py-3 font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
@@ -486,14 +424,11 @@ function Movies() {
                 ? "Searching..."
                 : "Search"}
             </button>
-
           </div>
 
           {!isSearchMode && (
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-
               <div className="relative">
-
                 <Filter
                   size={17}
                   className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
@@ -523,7 +458,6 @@ function Movies() {
                     )
                   )}
                 </select>
-
               </div>
 
               <select
@@ -543,23 +477,19 @@ function Movies() {
                   (year) => (
                     <option
                       key={year}
-                      value={String(
-                        year
-                      )}
+                      value={String(year)}
                     >
                       {year}
                     </option>
                   )
                 )}
               </select>
-
             </div>
           )}
 
           {!isSearchMode &&
             hasActiveFilters && (
               <div className="mt-4 flex flex-wrap items-center gap-2">
-
                 <span className="text-sm text-slate-500">
                   Active:
                 </span>
@@ -578,21 +508,16 @@ function Movies() {
 
                 <button
                   type="button"
-                  onClick={
-                    clearFilters
-                  }
-                  className="ml-auto inline-flex items-center gap-1 text-sm text-slate-500 hover:text-red-500"
+                  onClick={clearFilters}
+                  className="ml-auto inline-flex items-center gap-1 text-sm text-slate-500 transition hover:text-red-500"
                 >
                   <X size={15} />
                   Clear
                 </button>
-
               </div>
             )}
-
         </div>
 
-        {/* Search Error */}
         {searchError && (
           <div className="mb-8 rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-center">
             <p className="text-red-500 dark:text-red-400">
@@ -601,362 +526,250 @@ function Movies() {
           </div>
         )}
 
-        {/* Search Header */}
         {isSearchMode &&
-          !searching &&
-          !searchError && (
+          !searching && (
             <div className="mb-5 flex items-center justify-between">
-
-              <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+              <h2 className="text-xl font-semibold">
                 Search Results
               </h2>
 
               <span className="text-sm text-slate-500">
-                Page {searchPage} of{" "}
-                {searchTotalPages}
+                {searchResults.length} result
+                {searchResults.length !==
+                1
+                  ? "s"
+                  : ""}
               </span>
-
             </div>
           )}
 
-        {/* Search Loading */}
         {isSearchMode &&
           searching && (
             <div className="flex min-h-64 items-center justify-center">
               <div className="text-center">
-
                 <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-300 border-t-red-500 dark:border-slate-700" />
 
                 <p className="text-slate-600 dark:text-slate-400">
                   Searching movies...
                 </p>
-
               </div>
             </div>
           )}
 
-        {/* Search Empty */}
         {isSearchMode &&
           !searching &&
           !searchError &&
           searchResults.length === 0 && (
             <div className="rounded-xl border border-slate-200 bg-white p-10 text-center dark:border-slate-800 dark:bg-slate-900">
-
               <Film
                 size={40}
                 className="mx-auto text-slate-400 dark:text-slate-600"
               />
 
-              <h2 className="mt-4 text-xl font-semibold text-slate-900 dark:text-white">
+              <h2 className="mt-4 text-xl font-semibold">
                 No movies found
               </h2>
 
               <p className="mt-2 text-slate-600 dark:text-slate-400">
                 Try another movie title.
               </p>
-
             </div>
           )}
 
-        {/* Search Results */}
         {isSearchMode &&
           !searching &&
           !searchError &&
           searchResults.length > 0 && (
-            <>
-              <div className="grid items-stretch gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-
-                {searchResults.map(
-                  (movie) => (
-                    <article
-                      key={movie.id}
-                      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
+            <div className="grid items-stretch gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {searchResults.map(
+                (movie) => (
+                  <article
+                    key={movie.id}
+                    className="flex h-full min-h-[650px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+                  >
+                    <Link
+                      to={`/movies/tmdb-${movie.id}`}
+                      state={{
+                        from: "/movies",
+                      }}
+                      className="block shrink-0"
                     >
-
-                      {/* Poster */}
-                      <Link
-                        to={`/movies/tmdb-${movie.id}`}
-                      >
-                        <div className="aspect-2/3 overflow-hidden bg-slate-200 dark:bg-slate-800">
-
-                          {movie.poster_path ? (
-                            <img
-                              src={getPosterUrl(
-                                movie.poster_path
-                              )}
-                              alt={
-                                movie.title
-                              }
-                              className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                      <div className="aspect-[2/3] overflow-hidden bg-slate-200 dark:bg-slate-800">
+                        {movie.poster_path ? (
+                          <img
+                            src={getPosterUrl(
+                              movie.poster_path
+                            )}
+                            alt={movie.title}
+                            loading="lazy"
+                            className="h-full w-full object-cover transition duration-500 hover:scale-105"
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center">
+                            <Film
+                              size={64}
+                              className="text-slate-400 dark:text-slate-600"
                             />
-                          ) : (
-                            <div className="flex h-full items-center justify-center">
-                              <Film
-                                size={64}
-                                className="text-slate-400 dark:text-slate-600"
-                              />
-                            </div>
-                          )}
+                          </div>
+                        )}
+                      </div>
+                    </Link>
 
-                        </div>
-                      </Link>
+                    <div className="flex flex-1 flex-col p-5">
+                      <div className="flex min-h-[52px] items-start justify-between gap-3">
+                        <h3 className="line-clamp-2 text-lg font-bold leading-6">
+                          {movie.title}
+                        </h3>
 
-                      {/* Fixed-height content */}
-                      <div className="relative h-70 p-5">
+                        <span className="flex shrink-0 items-center gap-1 rounded-md bg-yellow-500/10 px-2 py-1 text-sm text-yellow-600 dark:text-yellow-400">
+                          <Star
+                            size={14}
+                            fill="currentColor"
+                          />
 
-                        {/* Title + Rating */}
-                        <div className="flex items-start justify-between gap-3">
+                          {movie.vote_average
+                            ? movie.vote_average.toFixed(
+                                1
+                              )
+                            : "N/A"}
+                        </span>
+                      </div>
 
-                          <Link
-                            to={`/movies/tmdb-${movie.id}`}
-                            className="line-clamp-2 min-h-14 pr-2 text-lg font-bold text-slate-900 hover:text-red-500 dark:text-white dark:hover:text-red-400"
-                          >
-                            {movie.title}
-                          </Link>
-
-                          <span className="flex shrink-0 items-center gap-1 rounded-md bg-yellow-500/10 px-2 py-1 text-sm text-yellow-600 dark:text-yellow-400">
-                            <Star
-                              size={14}
-                              fill="currentColor"
-                            />
-
-                            {movie.vote_average
-                              ? movie.vote_average.toFixed(
-                                  1
-                                )
-                              : "N/A"}
-                          </span>
-
-                        </div>
-
-                        {/* Year */}
+                      <div className="mt-2 min-h-[44px]">
                         {movie.release_date && (
-                          <p className="mt-2 text-sm text-slate-500">
+                          <p className="text-sm text-slate-500">
                             {new Date(
                               movie.release_date
                             ).getFullYear()}
                           </p>
                         )}
 
-                        {/* Language */}
-                        <p className="mt-2 text-sm uppercase text-slate-500">
+                        <p className="mt-1 text-sm uppercase text-slate-500">
                           {movie.original_language ||
                             "Unknown"}
                         </p>
-
-                        {/* Genres */}
-                        <div className="mt-3 h-8 overflow-hidden">
-
-                          {movie.genres &&
-                            movie.genres.length >
-                              0 && (
-                              <div className="flex flex-wrap gap-2">
-
-                                {movie.genres
-                                  .slice(
-                                    0,
-                                    3
-                                  )
-                                  .map(
-                                    (
-                                      movieGenre
-                                    ) => (
-                                      <span
-                                        key={
-                                          movieGenre
-                                        }
-                                        className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-400"
-                                      >
-                                        {
-                                          movieGenre
-                                        }
-                                      </span>
-                                    )
-                                  )}
-
-                              </div>
-                            )}
-
-                        </div>
-
-                        {/* Overview */}
-                        <p className="mt-3 h-18 overflow-hidden text-sm leading-6 text-slate-600 dark:text-slate-400">
-                          {movie.overview ||
-                            "No overview available."}
-                        </p>
-
-                        {/* Fixed button */}
-                        <Link
-                          to={`/movies/tmdb-${movie.id}`}
-                          className="absolute bottom-5 left-5 right-5 flex h-12 items-center justify-center rounded-lg bg-red-600 px-4 font-semibold text-white transition hover:bg-red-700"
-                        >
-                          View Details
-                        </Link>
-
                       </div>
 
-                    </article>
-                  )
-                )}
+                      <p className="mt-3 h-[72px] overflow-hidden text-sm leading-6 text-slate-600 dark:text-slate-400">
+                        {movie.overview ||
+                          "No description available."}
+                      </p>
 
-              </div>
-
-              {/* Search Pagination */}
-              {searchTotalPages > 1 && (
-                <div className="mt-10 flex items-center justify-center gap-3">
-
-                  <button
-                    type="button"
-                    onClick={
-                      handlePreviousPage
-                    }
-                    disabled={
-                      searching ||
-                      searchPage <= 1
-                    }
-                    className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 font-medium text-slate-700 transition hover:border-red-500 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
-                  >
-                    <ChevronLeft
-                      size={18}
-                    />
-
-                    Previous
-                  </button>
-
-                  <span className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                    {searchPage} /{" "}
-                    {searchTotalPages}
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={
-                      handleNextPage
-                    }
-                    disabled={
-                      searching ||
-                      searchPage >=
-                        searchTotalPages
-                    }
-                    className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 font-medium text-slate-700 transition hover:border-red-500 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
-                  >
-                    Next
-
-                    <ChevronRight
-                      size={18}
-                    />
-                  </button>
-
-                </div>
+                      <Link
+                        to={`/movies/tmdb-${movie.id}`}
+                        state={{
+                          from: "/movies",
+                        }}
+                        className="mt-auto flex min-h-[44px] items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-red-700"
+                      >
+                        More Info
+                        <ArrowRight
+                          size={16}
+                        />
+                      </Link>
+                    </div>
+                  </article>
+                )
               )}
-            </>
+            </div>
           )}
 
-        {/* Normal Movies */}
-        {!isSearchMode && (
-          <>
-            <div className="mb-5 flex items-center justify-between">
+        {!isSearchMode &&
+          loading && (
+            <div className="flex min-h-64 items-center justify-center">
+              <div className="text-center">
+                <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-300 border-t-red-500 dark:border-slate-700" />
 
-              <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
-                Available Movies
+                <p className="text-slate-600 dark:text-slate-400">
+                  Loading movies...
+                </p>
+              </div>
+            </div>
+          )}
+
+        {!isSearchMode &&
+          !loading &&
+          error && (
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-8 text-center">
+              <p className="font-medium text-red-500 dark:text-red-400">
+                {error}
+              </p>
+
+              <button
+                type="button"
+                onClick={() =>
+                  window.location.reload()
+                }
+                className="mt-5 rounded-lg bg-red-600 px-5 py-2.5 font-semibold text-white transition hover:bg-red-700"
+              >
+                Try Again
+              </button>
+            </div>
+          )}
+
+        {!isSearchMode &&
+          !loading &&
+          !error &&
+          filteredMovies.length === 0 && (
+            <div className="rounded-xl border border-slate-200 bg-white p-10 text-center dark:border-slate-800 dark:bg-slate-900">
+              <Film
+                size={40}
+                className="mx-auto text-slate-400 dark:text-slate-600"
+              />
+
+              <h2 className="mt-4 text-xl font-semibold">
+                No movies found
               </h2>
 
-              {!loading && (
-                <span className="text-sm text-slate-500">
-                  {filteredMovies.length}{" "}
-                  movies
-                </span>
-              )}
-
+              <p className="mt-2 text-slate-600 dark:text-slate-400">
+                There are no movies available yet.
+              </p>
             </div>
+          )}
 
-            {/* Loading */}
-            {loading && (
-              <div className="flex min-h-64 items-center justify-center">
-                <div className="text-center">
-
-                  <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-300 border-t-red-500 dark:border-slate-700" />
-
-                  <p className="text-slate-600 dark:text-slate-400">
-                    Loading movies...
-                  </p>
-
-                </div>
-              </div>
-            )}
-
-            {/* Error */}
-            {!loading && error && (
-              <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-8 text-center">
-
-                <Film
-                  size={40}
-                  className="mx-auto text-red-500"
-                />
-
-                <h2 className="mt-4 text-xl font-semibold text-slate-900 dark:text-white">
-                  Failed to load movies
+        {!isSearchMode &&
+          !loading &&
+          !error &&
+          filteredMovies.length > 0 && (
+            <>
+              <div className="mb-5 flex items-center justify-between">
+                <h2 className="text-xl font-semibold">
+                  Available Movies
                 </h2>
 
-                <p className="mt-2 text-red-500 dark:text-red-400">
-                  {error}
-                </p>
-
+                <span className="text-sm text-slate-500">
+                  {filteredMovies.length} movie
+                  {filteredMovies.length !==
+                  1
+                    ? "s"
+                    : ""}
+                </span>
               </div>
-            )}
 
-            {/* Empty */}
-            {!loading &&
-              !error &&
-              filteredMovies.length ===
-                0 && (
-                <div className="rounded-xl border border-slate-200 bg-white p-10 text-center dark:border-slate-800 dark:bg-slate-900">
+              <div className="grid items-stretch gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {filteredMovies.map(
+                  (movie) => {
+                    const posterUrl =
+                      getPosterUrl(
+                        movie.posterPath
+                      );
 
-                  <Film
-                    size={40}
-                    className="mx-auto text-slate-400 dark:text-slate-600"
-                  />
-
-                  <h2 className="mt-4 text-xl font-semibold text-slate-900 dark:text-white">
-                    No movies available
-                  </h2>
-
-                  <p className="mt-2 text-slate-600 dark:text-slate-400">
-                    Try changing your filters.
-                  </p>
-
-                </div>
-              )}
-
-            {/* Normal Movie Grid */}
-            {!loading &&
-              !error &&
-              filteredMovies.length >
-                0 && (
-                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-
-                  {filteredMovies.map(
-                    (movie) => (
+                    return (
                       <article
                         key={movie._id}
-                        className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
+                        className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
                       >
-
-                        {/* Poster */}
                         <Link
                           to={`/movies/${movie._id}`}
+                          className="block shrink-0"
                         >
-                          <div className="aspect-2/3 overflow-hidden bg-slate-200 dark:bg-slate-800">
-
-                            {movie.posterPath ? (
+                          <div className="aspect-[2/3] overflow-hidden bg-slate-200 dark:bg-slate-800">
+                            {posterUrl ? (
                               <img
-                                src={getPosterUrl(
-                                  movie.posterPath
-                                )}
-                                alt={
-                                  movie.title
-                                }
-                                className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                                src={posterUrl}
+                                alt={movie.title}
+                                loading="lazy"
+                                className="h-full w-full object-cover transition duration-500 hover:scale-105"
                               />
                             ) : (
                               <div className="flex h-full items-center justify-center">
@@ -966,104 +779,65 @@ function Movies() {
                                 />
                               </div>
                             )}
-
                           </div>
                         </Link>
 
-                        {/* Content */}
                         <div className="flex flex-1 flex-col p-5">
-
-                          <div className="flex items-start justify-between gap-3">
-
-                            <Link
-                              to={`/movies/${movie._id}`}
-                              className="line-clamp-2 min-h-14 pr-2 text-lg font-bold text-slate-900 hover:text-red-500 dark:text-white dark:hover:text-red-400"
-                            >
+                          <div className="flex min-h-[52px] items-start justify-between gap-3">
+                            <h3 className="line-clamp-2 text-lg font-bold leading-6">
                               {movie.title}
-                            </Link>
+                            </h3>
 
-                            <span className="flex shrink-0 items-center gap-1 rounded-md bg-yellow-500/10 px-2 py-1 text-sm text-yellow-600 dark:text-yellow-400">
-                              <Star
-                                size={14}
-                                fill="currentColor"
-                              />
+                            {movie.rating !==
+                              undefined && (
+                              <span className="flex shrink-0 items-center gap-1 rounded-md bg-yellow-500/10 px-2 py-1 text-sm text-yellow-600 dark:text-yellow-400">
+                                <Star
+                                  size={14}
+                                  fill="currentColor"
+                                />
 
-                              {movie.rating
-                                ? movie.rating.toFixed(
-                                    1
-                                  )
-                                : "N/A"}
-                            </span>
-
+                                {movie.rating.toFixed(
+                                  1
+                                )}
+                              </span>
+                            )}
                           </div>
 
-                          {movie.releaseDate && (
-                            <p className="mt-2 text-sm text-slate-500">
-                              {new Date(
-                                movie.releaseDate
-                              ).getFullYear()}
-                            </p>
-                          )}
-
-                          {movie.language && (
-                            <p className="mt-2 text-sm uppercase text-slate-500">
-                              {movie.language}
-                            </p>
-                          )}
-
-                          {movie.genres &&
-                            movie.genres.length >
-                              0 && (
-                              <div className="mt-3 flex min-h-8 flex-wrap gap-2">
-
-                                {movie.genres
-                                  .slice(
-                                    0,
-                                    3
-                                  )
-                                  .map(
-                                    (
-                                      movieGenre
-                                    ) => (
-                                      <span
-                                        key={
-                                          movieGenre
-                                        }
-                                        className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-400"
-                                      >
-                                        {
-                                          movieGenre
-                                        }
-                                      </span>
-                                    )
-                                  )}
-
-                              </div>
+                          <div className="mt-2 min-h-11">
+                            {movie.releaseDate && (
+                              <p className="text-sm text-slate-500">
+                                {new Date(
+                                  movie.releaseDate
+                                ).getFullYear()}
+                              </p>
                             )}
 
-                          <p className="mt-3 min-h-18 line-clamp-3 text-sm leading-6 text-slate-600 dark:text-slate-400">
-                            {movie.overview ||
-                              "No overview available."}
-                          </p>
+                            {movie.genres &&
+                              movie.genres
+                                .length >
+                                0 && (
+                                <p className="mt-1 line-clamp-1 text-sm text-slate-600 dark:text-slate-400">
+                                  {movie.genres.join(
+                                    " • "
+                                  )}
+                                </p>
+                              )}
+                          </div>
 
                           <Link
                             to={`/movies/${movie._id}`}
-                            className="mt-auto flex min-h-12 items-center justify-center rounded-lg bg-red-600 px-4 py-3 font-semibold text-white transition hover:bg-red-700"
+                            className="mt-auto block min-h-[44px] rounded-lg bg-red-600 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-red-700"
                           >
-                            View Details
+                            View Movie
                           </Link>
-
                         </div>
-
                       </article>
-                    )
-                  )}
-
-                </div>
-              )}
-          </>
-        )}
-
+                    );
+                  }
+                )}
+              </div>
+            </>
+          )}
       </div>
     </section>
   );

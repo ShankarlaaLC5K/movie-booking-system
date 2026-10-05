@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 
 import { Movie } from "../models/Movie";
-
+import { Show } from "../models/Show";
 import {
   getPopularMovies,
   getRecentMovies,
@@ -31,7 +31,9 @@ export async function popularMovies(
     res.status(500).json({
       success: false,
       message:
-        "Failed to fetch popular movies",
+        error instanceof Error
+          ? error.message
+          : "Failed to fetch popular movies",
     });
   }
 }
@@ -118,7 +120,9 @@ export async function searchMovie(
     res.status(500).json({
       success: false,
       message:
-        "Failed to search movies",
+        error instanceof Error
+          ? error.message
+          : "Failed to search movies",
     });
   }
 }
@@ -160,7 +164,9 @@ export async function movieDetails(
     res.status(500).json({
       success: false,
       message:
-        "Failed to fetch movie details",
+        error instanceof Error
+          ? error.message
+          : "Failed to fetch movie details",
     });
   }
 }
@@ -197,7 +203,7 @@ export async function saveMovie(
         { tmdbId },
         movieData,
         {
-          new: true,
+          returnDocument: "after",
           upsert: true,
           runValidators: true,
         }
@@ -218,7 +224,9 @@ export async function saveMovie(
     res.status(500).json({
       success: false,
       message:
-        "Failed to save movie",
+        error instanceof Error
+          ? error.message
+          : "Failed to save movie",
     });
   }
 }
@@ -247,11 +255,59 @@ export async function getMovies(
     res.status(500).json({
       success: false,
       message:
-        "Failed to fetch movies",
+        error instanceof Error
+          ? error.message
+          : "Failed to fetch movies",
     });
   }
 }
 
+export async function getAvailableMovies(
+  _req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const shows = await Show.find({})
+      .select("movie")
+      .lean();
+
+    const movieIds = [
+      ...new Set(
+        shows.map((show) =>
+          show.movie.toString()
+        )
+      ),
+    ];
+
+    const movies =
+      await Movie.find({
+        _id: {
+          $in: movieIds,
+        },
+      }).sort({
+        createdAt: -1,
+      });
+
+    res.json({
+      success: true,
+      count: movies.length,
+      movies,
+    });
+  } catch (error) {
+    console.error(
+      "Get available movies error:",
+      error
+    );
+
+    res.status(500).json({
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Failed to fetch available movies",
+    });
+  }
+}
 export async function getMovie(
   req: Request,
   res: Response
@@ -285,7 +341,9 @@ export async function getMovie(
     res.status(500).json({
       success: false,
       message:
-        "Failed to fetch movie",
+        error instanceof Error
+          ? error.message
+          : "Failed to fetch movie",
     });
   }
 }
@@ -324,7 +382,9 @@ export async function deleteMovie(
     res.status(500).json({
       success: false,
       message:
-        "Failed to delete movie",
+        error instanceof Error
+          ? error.message
+          : "Failed to delete movie",
     });
   }
 }

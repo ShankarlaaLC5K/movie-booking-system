@@ -76,7 +76,7 @@ export async function login(
   req: Request,
   res: Response
 ): Promise<void> {
-    console.log("LOGIN REQUEST RECEIVED");
+
   try {
     const { email, password } = req.body;
 

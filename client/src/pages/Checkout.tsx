@@ -13,7 +13,6 @@ import {
 
 import {
   useNavigate,
-  useParams,
 } from "react-router-dom";
 
 import {
@@ -21,9 +20,7 @@ import {
 } from "../context/BookingContext";
 
 import {
-  cancelBooking,
   createBooking,
-  getBookingById,
 } from "../services/bookingService";
 
 import {
@@ -100,24 +97,12 @@ function Checkout() {
   const navigate = useNavigate();
 
   const {
-    bookingId: routeBookingId,
-  } = useParams<{
-    bookingId: string;
-  }>();
-
-  const {
-    showId: contextShowId,
-    selectedSeatIds: contextSeatIds,
-    selectedSeatNames: contextSeatNames,
-    expiresAt: contextExpiresAt,
+    showId,
+    selectedSeatIds,
+    selectedSeatNames,
+    expiresAt,
     clearBooking,
   } = useBooking();
-
-  const [pendingBooking, setPendingBooking] =
-    useState<any>(null);
-
-  const [loadingBooking, setLoadingBooking] =
-    useState(Boolean(routeBookingId));
 
   const [loading, setLoading] =
     useState(false);
@@ -137,199 +122,63 @@ function Checkout() {
   const [priceLoading, setPriceLoading] =
     useState(true);
 
-   useEffect(() => {
-    if (!routeBookingId) {
-      setPendingBooking(null);
-      setLoadingBooking(false);
+  // --------------------------------------------------
+  // Load show price
+  // --------------------------------------------------
 
-      return;
-    }
-
-    const loadPendingBooking =
-      async () => {
-        try {
-          setLoadingBooking(true);
-          setError("");
-
-          const response =
-            await getBookingById(
-              routeBookingId
-            );
-
-          const booking =
-            response.booking;
-
-          if (
-            booking.status.toLowerCase() !==
-            "pending"
-          ) {
-            setError(
-              "This booking is no longer pending."
-            );
-
-            return;
-          }
-
-          setPendingBooking(
-            booking
-          );
-        } catch (error: any) {
-          console.error(
-            "Failed to load pending booking:",
-            error
-          );
-
-          setError(
-            error?.response?.data?.message ||
-              "Failed to load pending booking."
-          );
-        } finally {
-          setLoadingBooking(false);
-        }
-      };
-
-    void loadPendingBooking();
-  }, [routeBookingId]);
-
-  
-
-  const activeShowId =
-    pendingBooking
-      ? typeof pendingBooking.show ===
-        "object"
-        ? pendingBooking.show._id
-        : pendingBooking.show
-      : contextShowId;
-
-  const activeSeatIds =
-    pendingBooking
-      ? Array.isArray(
-          pendingBooking.seats
-        )
-        ? pendingBooking.seats.map(
-            (seat: any) =>
-              typeof seat === "string"
-                ? seat
-                : seat._id
-          )
-        : []
-      : contextSeatIds;
-
-  const activeSeatNames: string[] =
-  pendingBooking
-    ? Array.isArray(
-        pendingBooking.seats
-      )
-        ? pendingBooking.seats.map(
-            (seat: any): string => {
-              if (
-                typeof seat ===
-                "string"
-              ) {
-                return seat;
-              }
-
-              if (
-                seat.row &&
-                seat.number !==
-                  undefined
-              ) {
-                return `${seat.row}${seat.number}`;
-              }
-
-              return seat._id;
-            }
-          )
-        : []
-    : contextSeatNames;
-
-  const activeExpiresAt =
-    pendingBooking?.expiresAt
-      ? new Date(
-          pendingBooking.expiresAt
-        ).getTime()
-      : contextExpiresAt;
-
- 
   useEffect(() => {
-    if (!activeShowId) {
-      setShowPrice(null);
+    if (!showId) {
       setPriceLoading(false);
-
       return;
     }
 
-    const loadShowPrice =
-      async () => {
-        try {
-          setPriceLoading(true);
+    const loadShowPrice = async () => {
+      try {
+        setPriceLoading(true);
 
-          const response =
-            await api.get<ShowPriceResponse>(
-              `/shows/${activeShowId}`
-            );
-
-          setShowPrice(
-            Number(
-              response.data.show.price
-            ) || 0
-          );
-        } catch (error) {
-          console.error(
-            "Failed to load show price:",
-            error
+        const response =
+          await api.get<ShowPriceResponse>(
+            `/shows/${showId}`
           );
 
-         
-          if (
-            pendingBooking &&
-            Number(
-              pendingBooking.totalAmount
-            ) > 0 &&
-            activeSeatIds.length > 0
-          ) {
-            setShowPrice(
-              Number(
-                pendingBooking.totalAmount
-              ) /
-                activeSeatIds.length
-            );
-          } else {
-            setShowPrice(null);
-          }
-        } finally {
-          setPriceLoading(false);
-        }
-      };
-
-    void loadShowPrice();
-  }, [
-    activeShowId,
-    pendingBooking,
-    activeSeatIds.length,
-  ]);
-
-  
-  useEffect(() => {
-    if (!activeExpiresAt) {
-      setTimeLeft(null);
-
-      return;
-    }
-
-    const updateTimer =
-      () => {
-        const remaining =
-          Math.max(
-            0,
-            activeExpiresAt -
-              Date.now()
-          );
-
-        setTimeLeft(
-          remaining
+        setShowPrice(
+          Number(
+            response.data.show.price
+          ) || 0
         );
-      };
+      } catch (error) {
+        console.error(
+          "Failed to load show price:",
+          error
+        );
+
+        setShowPrice(null);
+      } finally {
+        setPriceLoading(false);
+      }
+    };
+
+    loadShowPrice();
+  }, [showId]);
+
+  // --------------------------------------------------
+  // Reservation timer
+  // --------------------------------------------------
+
+  useEffect(() => {
+    if (!expiresAt) {
+      setTimeLeft(null);
+      return;
+    }
+
+    const updateTimer = () => {
+      const remaining = Math.max(
+        0,
+        expiresAt - Date.now()
+      );
+
+      setTimeLeft(remaining);
+    };
 
     updateTimer();
 
@@ -343,65 +192,45 @@ function Checkout() {
       window.clearInterval(
         interval
       );
-  }, [activeExpiresAt]);
+  }, [expiresAt]);
 
- 
-  if (loadingBooking) {
-    return (
-      <section className="flex min-h-[calc(100vh-140px)] items-center justify-center bg-slate-950 px-4 py-20 text-white">
-        <div className="text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-500/10 text-red-500">
-            <Ticket size={28} />
-          </div>
+  // --------------------------------------------------
+  // Empty booking protection
+  // --------------------------------------------------
 
-          <h1 className="mt-5 text-2xl font-bold">
-            Loading Booking
-          </h1>
-
-          <p className="mt-2 text-slate-400">
-            Loading your pending booking...
-          </p>
-        </div>
-      </section>
-    );
-  }
-
- 
   if (
-    !activeShowId ||
-    !activeSeatIds.length
+    !showId ||
+    !selectedSeatIds.length
   ) {
     return (
-      <section className="flex min-h-[calc(100vh-140px)] items-center justify-center bg-slate-950 px-4 py-20 text-white">
+      <section className="flex min-h-[calc(100vh-140px)] items-center justify-center bg-slate-50 px-4 py-20 text-slate-900 dark:bg-slate-950 dark:text-white">
+
         <div className="text-center">
+
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-500/10 text-red-500">
             <Ticket size={28} />
           </div>
 
-          <h1 className="mt-5 text-2xl font-bold">
+          <h1 className="mt-5 text-2xl font-bold text-slate-900 dark:text-white">
             No seats selected
           </h1>
 
-          <p className="mt-2 text-slate-400">
+          <p className="mt-2 text-slate-600 dark:text-slate-400">
             Please select seats before continuing.
           </p>
-
-          {error && (
-            <p className="mt-3 text-sm text-red-400">
-              {error}
-            </p>
-          )}
 
           <button
             type="button"
             onClick={() =>
               navigate("/movies")
             }
-            className="mt-6 rounded-lg bg-red-600 px-5 py-3 font-semibold transition hover:bg-red-700"
+            className="mt-6 rounded-lg bg-red-600 px-5 py-3 font-semibold text-white transition hover:bg-red-700"
           >
             Browse Movies
           </button>
+
         </div>
+
       </section>
     );
   }
@@ -411,14 +240,10 @@ function Checkout() {
     timeLeft <= 0;
 
   const seatCount =
-    activeSeatIds.length;
+    selectedSeatIds.length;
 
   const totalAmount =
-    pendingBooking
-      ? Number(
-          pendingBooking.totalAmount
-        ) || 0
-      : showPrice !== null
+    showPrice !== null
       ? showPrice * seatCount
       : null;
 
@@ -440,56 +265,46 @@ function Checkout() {
 
     return `${String(
       minutes
-    ).padStart(2, "0")}:${String(
+    ).padStart(
+      2,
+      "0"
+    )}:${String(
       seconds
-    ).padStart(2, "0")}`;
+    ).padStart(
+      2,
+      "0"
+    )}`;
   };
 
- 
+  // --------------------------------------------------
+  // BACK TO SEATS
+  // --------------------------------------------------
+
   const handleBackToSeats =
     async () => {
       try {
         setBackLoading(true);
         setError("");
 
-        if (pendingBooking) {
-          await cancelBooking(
-            pendingBooking._id
-          );
-
-          clearBooking();
-
-          const pendingShowId =
-            typeof pendingBooking.show ===
-            "object"
-              ? pendingBooking.show._id
-              : pendingBooking.show;
-
-          navigate(
-            `/shows/${pendingShowId}/seats`
-          );
-
-          return;
-        }
-
         await unlockSeats(
-          activeShowId,
-          activeSeatIds
+          showId,
+          selectedSeatIds
         );
 
         clearBooking();
 
         navigate(
-          `/shows/${activeShowId}/seats`
+          `/shows/${showId}/seats`
         );
       } catch (error: any) {
         console.error(
-          "Failed to return to seat selection:",
+          "Failed to unlock seats:",
           error
         );
 
         setError(
-          error?.response?.data?.message ||
+          error?.response?.data
+            ?.message ||
             "Unable to return to seat selection. Please try again."
         );
       } finally {
@@ -497,13 +312,15 @@ function Checkout() {
       }
     };
 
- 
+  // --------------------------------------------------
+  // COMMON EXPIRY CHECK
+  // --------------------------------------------------
+
   const checkReservation =
     () => {
       if (
-        activeExpiresAt &&
-        activeExpiresAt <=
-          Date.now()
+        expiresAt &&
+        expiresAt <= Date.now()
       ) {
         setError(
           "Your seat reservation has expired. Please select the seats again."
@@ -515,23 +332,10 @@ function Checkout() {
       return true;
     };
 
- 
-  const getPaymentBooking =
-    async () => {
-      if (pendingBooking) {
-        return pendingBooking;
-      }
+  // --------------------------------------------------
+  // MOCK PAYMENT
+  // --------------------------------------------------
 
-      const bookingResponse =
-        await createBooking({
-          showId: activeShowId,
-          seatIds: activeSeatIds,
-        });
-
-      return bookingResponse.booking;
-    };
-
-  
   const handleMockPayment =
     async () => {
       if (!checkReservation()) {
@@ -542,8 +346,15 @@ function Checkout() {
         setLoading(true);
         setError("");
 
+        const bookingResponse =
+          await createBooking({
+            showId,
+            seatIds:
+              selectedSeatIds,
+          });
+
         const booking =
-          await getPaymentBooking();
+          bookingResponse.booking;
 
         const paymentResponse =
           await mockPaymentSuccess(
@@ -562,7 +373,8 @@ function Checkout() {
         );
 
         setError(
-          error?.response?.data?.message ||
+          error?.response?.data
+            ?.message ||
             "Development payment failed. Please try again."
         );
       } finally {
@@ -570,6 +382,9 @@ function Checkout() {
       }
     };
 
+  // --------------------------------------------------
+  // REAL RAZORPAY PAYMENT
+  // --------------------------------------------------
 
   const handleRazorpayPayment =
     async () => {
@@ -589,13 +404,18 @@ function Checkout() {
             "Unable to load Razorpay. Please check your internet connection and try again."
           );
 
-          setLoading(false);
-
           return;
         }
 
+        const bookingResponse =
+          await createBooking({
+            showId,
+            seatIds:
+              selectedSeatIds,
+          });
+
         const booking =
-          await getPaymentBooking();
+          bookingResponse.booking;
 
         const paymentOrder =
           await createPaymentOrder(
@@ -608,12 +428,15 @@ function Checkout() {
               paymentOrder.keyId,
 
             amount:
-              paymentOrder.order.amount,
+              paymentOrder.order
+                .amount,
 
             currency:
-              paymentOrder.order.currency,
+              paymentOrder.order
+                .currency,
 
-            name: "MovieBooking",
+            name:
+              "MovieBooking",
 
             description:
               "Movie ticket booking",
@@ -655,7 +478,8 @@ function Checkout() {
                 );
 
                 setError(
-                  error?.response?.data?.message ||
+                  error?.response
+                    ?.data?.message ||
                     "Payment verification failed. Please contact support."
                 );
               } finally {
@@ -686,7 +510,8 @@ function Checkout() {
         );
 
         setError(
-          error?.response?.data?.message ||
+          error?.response?.data
+            ?.message ||
             "Unable to process payment. Please try again."
         );
 
@@ -695,10 +520,14 @@ function Checkout() {
     };
 
   return (
-    <section className="min-h-[calc(100vh-140px)] bg-slate-950 px-4 py-10 text-white">
+    <section className="min-h-[calc(100vh-140px)] bg-slate-50 px-4 py-10 text-slate-900 dark:bg-slate-950 dark:text-white">
+
       <div className="mx-auto max-w-2xl">
 
+        {/* Header */}
+
         <div className="mb-8">
+
           <button
             type="button"
             onClick={
@@ -708,7 +537,7 @@ function Checkout() {
               loading ||
               backLoading
             }
-            className="mb-5 inline-flex items-center gap-2 rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 transition hover:border-slate-600 hover:bg-slate-900 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="mb-5 inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-100 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-900 dark:hover:text-white"
           >
             <ArrowLeft size={17} />
 
@@ -717,22 +546,17 @@ function Checkout() {
               : "Back to Seats"}
           </button>
 
-          <h1 className="text-3xl font-bold sm:text-4xl">
+          <h1 className="text-3xl font-bold text-slate-950 sm:text-4xl dark:text-white">
             Booking Summary
           </h1>
 
-          <p className="mt-2 text-slate-400">
+          <p className="mt-2 text-slate-600 dark:text-slate-400">
             Review your seats and complete your payment.
           </p>
 
-          {pendingBooking && (
-            <div className="mt-4 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm text-yellow-300">
-              You are continuing an existing
-              pending booking. Your selected
-              seats are already reserved.
-            </div>
-          )}
         </div>
+
+        {/* Reservation Timer */}
 
         {timeLeft !== null && (
           <div
@@ -742,158 +566,191 @@ function Checkout() {
                 : "border-yellow-500/30 bg-yellow-500/10"
             }`}
           >
+
             <div className="flex items-center gap-3">
+
               <Clock
                 size={21}
                 className={
                   timerExpired
-                    ? "text-red-400"
-                    : "text-yellow-400"
+                    ? "text-red-500 dark:text-red-400"
+                    : "text-yellow-600 dark:text-yellow-400"
                 }
               />
 
               <div>
-                <p className="text-sm text-slate-400">
+
+                <p className="text-sm text-slate-600 dark:text-slate-400">
                   Seat reservation
                 </p>
 
-                <p className="font-semibold">
+                <p className="font-semibold text-slate-900 dark:text-white">
                   {timerExpired
                     ? "Reservation expired"
                     : "Complete payment before the timer ends"}
                 </p>
+
               </div>
+
             </div>
 
             <span
               className={`text-2xl font-bold tabular-nums ${
                 timerExpired
-                  ? "text-red-400"
-                  : "text-yellow-400"
+                  ? "text-red-500 dark:text-red-400"
+                  : "text-yellow-600 dark:text-yellow-400"
               }`}
             >
               {formatTimer(
                 timeLeft
               )}
             </span>
+
           </div>
         )}
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 sm:p-8">
+        {/* Main Card */}
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 dark:border-slate-800 dark:bg-slate-900">
+
+          {/* Selected Seats */}
 
           <div>
+
             <div className="flex items-center gap-2">
+
               <Ticket
                 size={18}
                 className="text-red-500"
               />
 
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Selected Seats
               </p>
+
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2">
-              {activeSeatNames.map(
+
+              {selectedSeatNames.map(
                 (
                   seatName,
                   index
                 ) => (
                   <span
                     key={`${seatName}-${index}`}
-                    className="rounded-lg bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-400"
+                    className="rounded-lg bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-600 dark:text-red-400"
                   >
                     {seatName}
                   </span>
                 )
               )}
+
             </div>
+
           </div>
 
-          <div className="my-6 border-t border-slate-800" />
+          <div className="my-6 border-t border-slate-200 dark:border-slate-800" />
+
+          {/* Booking Summary */}
 
           <div className="space-y-4">
 
             <div className="flex justify-between">
-              <span className="text-slate-400">
+
+              <span className="text-slate-500 dark:text-slate-400">
                 Number of seats
               </span>
 
-              <span className="font-semibold">
+              <span className="font-semibold text-slate-900 dark:text-white">
                 {seatCount}
               </span>
+
             </div>
 
             <div className="flex justify-between">
-              <span className="text-slate-400">
+
+              <span className="text-slate-500 dark:text-slate-400">
                 Price per seat
               </span>
 
-              <span className="font-semibold">
+              <span className="font-semibold text-slate-900 dark:text-white">
                 {priceLoading
                   ? "Loading..."
                   : showPrice !== null
                   ? `₹${showPrice.toFixed(2)}`
                   : "Unavailable"}
               </span>
+
             </div>
 
-            <div className="border-t border-slate-800 pt-4">
+            <div className="border-t border-slate-200 pt-4 dark:border-slate-800">
+
               <div className="flex items-center justify-between">
-                <span className="text-lg font-semibold">
+
+                <span className="text-lg font-semibold text-slate-900 dark:text-white">
                   Total Amount
                 </span>
 
-                <span className="text-2xl font-bold text-red-400">
-                  {priceLoading &&
-                  !pendingBooking
+                <span className="text-2xl font-bold text-red-600 dark:text-red-400">
+                  {priceLoading
                     ? "..."
-                    : totalAmount !==
-                      null
+                    : totalAmount !== null
                     ? `₹${totalAmount.toFixed(2)}`
                     : "Unavailable"}
                 </span>
+
               </div>
+
             </div>
 
           </div>
 
-          <div className="mt-6 rounded-xl border border-slate-800 bg-slate-950 p-4">
+          {/* Payment Information */}
+
+          <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
 
             <div className="flex items-center justify-between gap-4">
 
               <div className="flex items-center gap-3">
+
                 <div className="rounded-lg bg-red-500/10 p-2 text-red-500">
                   <CreditCard size={20} />
                 </div>
 
                 <div>
-                  <p className="font-semibold">
+
+                  <p className="font-semibold text-slate-900 dark:text-white">
                     Payment
                   </p>
 
-                  <p className="mt-1 text-sm text-slate-400">
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                     Secure payment via Razorpay
                   </p>
+
                 </div>
+
               </div>
 
-              <div className="flex items-center gap-1 rounded-md bg-green-500/10 px-3 py-1 text-xs font-semibold text-green-400">
+              <div className="flex items-center gap-1 rounded-md bg-green-500/10 px-3 py-1 text-xs font-semibold text-green-600 dark:text-green-400">
                 <ShieldCheck size={14} />
                 Secure
               </div>
 
             </div>
+
           </div>
+
+          {/* Development Payment */}
 
           {import.meta.env.DEV && (
             <div className="mt-5 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4">
 
-              <p className="text-sm font-semibold text-yellow-400">
+              <p className="text-sm font-semibold text-yellow-600 dark:text-yellow-400">
                 Development Test Payment
               </p>
 
-              <p className="mt-1 text-xs text-yellow-300/80">
+              <p className="mt-1 text-xs text-yellow-700/80 dark:text-yellow-300/80">
                 Use this button to test the complete booking flow without a real payment.
               </p>
 
@@ -915,8 +772,11 @@ function Checkout() {
                   ? "Reservation Expired"
                   : "Complete Test Payment"}
               </button>
+
             </div>
           )}
+
+          {/* Real Razorpay */}
 
           <button
             type="button"
@@ -925,30 +785,26 @@ function Checkout() {
               backLoading ||
               timerExpired ||
               priceLoading ||
-              totalAmount ===
-                null
+              showPrice === null
             }
             onClick={
               handleRazorpayPayment
             }
-            className="mt-5 w-full rounded-lg bg-red-600 px-5 py-3.5 font-semibold transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-5 w-full rounded-lg bg-red-600 px-5 py-3.5 font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading
               ? "Processing Payment..."
               : timerExpired
               ? "Reservation Expired"
-              : priceLoading &&
-                !pendingBooking
+              : priceLoading
               ? "Loading Amount..."
-              : `Pay ₹${
-                  totalAmount?.toFixed(
-                    2
-                  ) ?? "0.00"
-                } with Razorpay`}
+              : `Pay ₹${totalAmount?.toFixed(2) ?? "0.00"} with Razorpay`}
           </button>
 
+          {/* Error */}
+
           {error && (
-            <div className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
+            <div className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-500 dark:text-red-400">
               {error}
             </div>
           )}
@@ -959,6 +815,7 @@ function Checkout() {
 
         </div>
       </div>
+
     </section>
   );
 }

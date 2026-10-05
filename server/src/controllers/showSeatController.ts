@@ -322,7 +322,7 @@ export async function lockShowSeats(
             },
           },
           {
-            new: true,
+             returnDocument: "after",
           }
         );
 
@@ -391,11 +391,7 @@ export async function unlockShowSeats(
       return;
     }
 
-     console.log("========== LOCK DEBUG ==========");
-    console.log("req.userId:", req.userId);
-    console.log("showId:", req.params.showId);
-    console.log("seatIds:", req.body.seatIds);
-    console.log("================================");
+
 
     const showId = String(req.params.showId);
     const { seatIds } = req.body;

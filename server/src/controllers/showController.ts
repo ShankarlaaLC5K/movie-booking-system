@@ -1302,7 +1302,7 @@ export async function updateShow(
         showId,
         updateData,
         {
-          new: true,
+          returnDocument: "after",
           runValidators: true,
         }
       );

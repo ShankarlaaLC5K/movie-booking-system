@@ -1,5 +1,13 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  Link,
+  useNavigate,
+} from "react-router-dom";
+
 import {
   ArrowRight,
   CalendarDays,
@@ -55,7 +63,11 @@ function formatReleaseDate(
   const parsedDate =
     new Date(`${date}T00:00:00`);
 
-  if (Number.isNaN(parsedDate.getTime())) {
+  if (
+    Number.isNaN(
+      parsedDate.getTime()
+    )
+  ) {
     return date;
   }
 
@@ -70,6 +82,11 @@ function formatReleaseDate(
 }
 
 function Home() {
+  const navigate = useNavigate();
+
+  const [searchQuery, setSearchQuery] =
+    useState("");
+
   const [recentMovies, setRecentMovies] =
     useState<RecentMovie[]>([]);
 
@@ -83,362 +100,440 @@ function Home() {
     setRecentMoviesError,
   ] = useState("");
 
-useEffect(() => {
-  let cancelled = false;
-
-  const loadRecentMovies = async (
-    attempt = 1
-  ): Promise<void> => {
-    try {
-      setLoadingRecentMovies(true);
-
-      if (!cancelled) {
-        setRecentMoviesError("");
-      }
-
-      const response =
-        await api.get<RecentMoviesResponse>(
-          "/movies/recent",
-          {
-            timeout: 15000,
-          }
-        );
-
-      if (cancelled) {
-        return;
-      }
-
-      setRecentMovies(
-        response.data.data.results.slice(0, 6)
-      );
-    } catch (error: any) {
-      console.error(
-        `Failed to load recent movies (attempt ${attempt}):`,
-        error
-      );
-
-      /*
-       * Retry once automatically.
-       * This prevents a temporary backend/TMDB
-       * connection issue from showing an error
-       * on the first page load.
-       */
-      if (attempt < 2 && !cancelled) {
-        window.setTimeout(() => {
-          void loadRecentMovies(
-            attempt + 1
+  useEffect(() => {
+    const loadRecentMovies =
+      async () => {
+        try {
+          setLoadingRecentMovies(
+            true
           );
-        }, 1000);
 
-        return;
-      }
+          setRecentMoviesError("");
 
-      if (!cancelled) {
-        setRecentMoviesError(
-          error?.response?.data?.message ||
-            "Failed to load recent releases."
-        );
-      }
-    } finally {
-      if (!cancelled) {
-        setLoadingRecentMovies(false);
-      }
+          const response =
+            await api.get<RecentMoviesResponse>(
+              "/movies/recent"
+            );
+
+          setRecentMovies(
+            response.data.data.results
+          );
+        } catch (error: any) {
+          console.error(
+            "Failed to load recent movies:",
+            error
+          );
+
+          setRecentMoviesError(
+            error?.response?.data
+              ?.message ||
+              "Failed to load recent releases."
+          );
+        } finally {
+          setLoadingRecentMovies(
+            false
+          );
+        }
+      };
+
+    void loadRecentMovies();
+  }, []);
+
+  const handleSearch = () => {
+    const query =
+      searchQuery.trim();
+
+    if (!query) {
+      navigate("/movies");
+      return;
     }
+
+    navigate(
+      `/movies?search=${encodeURIComponent(
+        query
+      )}`
+    );
   };
 
-  void loadRecentMovies();
+  const handleSearchKeyDown =
+    (
+      event: React.KeyboardEvent<HTMLInputElement>
+    ) => {
+      if (
+        event.key === "Enter"
+      ) {
+        handleSearch();
+      }
+    };
 
-  return () => {
-    cancelled = true;
-  };
-}, []);
+  return (
+    <div className="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-white">
 
- return (
-  <div className="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-white">
+      {/* Hero */}
+      <section className="relative overflow-hidden">
 
-    <section className="relative overflow-hidden">
-      <div className="absolute inset-0 bg-linear-to-br from-red-100 via-slate-50 to-slate-50 dark:from-red-950/40 dark:via-slate-950 dark:to-slate-950" />
+        <div className="absolute inset-0 bg-linear-to-br from-red-100 via-slate-50 to-white dark:from-red-950/40 dark:via-slate-950 dark:to-slate-950" />
 
-      <div className="relative mx-auto max-w-7xl px-4 py-6 sm:py-8 lg:py-10">
-        <div className="max-w-3xl">
+        <div className="relative mx-auto max-w-7xl px-4 py-20 sm:py-28 lg:py-36">
 
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-500 dark:text-red-400">
-            <Ticket size={16} />
-            Your movie experience starts here
+          <div className="max-w-3xl">
+
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-600 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400">
+              <Ticket size={16} />
+              Your movie experience starts here
+            </div>
+
+            <h1 className="text-4xl font-extrabold leading-tight text-slate-900 sm:text-5xl lg:text-7xl dark:text-white">
+              Book Your
+              <span className="text-red-500">
+                {" "}
+                Movie Tickets{" "}
+              </span>
+              Easily
+            </h1>
+
+            <p className="mt-6 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg dark:text-slate-400">
+              Discover movies, choose your
+              favourite theatre, select your
+              seats and book your tickets in
+              just a few clicks.
+            </p>
+
+            <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+
+              <Link
+                to="/movies"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-6 py-3 font-semibold text-white transition hover:bg-red-700"
+              >
+                Browse Movies
+                <ArrowRight size={18} />
+              </Link>
+
+              <Link
+                to="/register"
+                className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-6 py-3 font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-transparent dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                Create Account
+              </Link>
+
+            </div>
+
           </div>
+        </div>
+      </section>
 
-          <h1 className="text-4xl font-extrabold leading-tight text-slate-900 dark:text-white sm:text-5xl lg:text-6xl">
-            Book Your
-            <span className="text-red-500">
-              {" "}
-              Movie Tickets{" "}
-            </span>
-            Easily
-          </h1>
+      {/* Search */}
+      <section className="border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/50">
 
-          <p className="mt-3 max-w-2xl text-base leading-6 text-slate-600 dark:text-slate-400 sm:text-lg">
-            Discover movies, choose your favourite
-            theatre, select your seats and book your
-            tickets in just a few clicks.
-          </p>
+        <div className="mx-auto max-w-7xl px-4 py-8">
 
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+          <div className="grid gap-4 md:grid-cols-[1fr_auto]">
 
-            <Link
-              to="/movies"
+            <div className="flex items-center rounded-lg border border-slate-300 bg-slate-50 px-4 dark:border-slate-700 dark:bg-slate-950">
+
+              <Search
+                size={20}
+                className="mr-3 text-slate-500"
+              />
+
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(event) =>
+                  setSearchQuery(
+                    event.target.value
+                  )
+                }
+                onKeyDown={
+                  handleSearchKeyDown
+                }
+                placeholder="Search for movies..."
+                className="w-full bg-transparent py-3 text-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-slate-500"
+              />
+
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSearch}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-6 py-3 font-semibold text-white transition hover:bg-red-700"
             >
-              Browse Movies
-              <ArrowRight size={18} />
-            </Link>
-
-            <Link
-              to="/register"
-              className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-6 py-3 font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-            >
-              Create Account
-            </Link>
+              <Search size={18} />
+              Search
+            </button>
 
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section className="border-y border-slate-200 bg-slate-100/70 dark:border-slate-800 dark:bg-slate-900/50">
-      <div className="mx-auto max-w-7xl px-4 py-8">
+      {/* Recent Releases */}
+      <section className="mx-auto max-w-7xl px-4 py-16">
 
-        <div className="grid gap-4 md:grid-cols-[1fr_auto]">
+        <div className="mb-8 flex items-end justify-between gap-4">
 
-          <div className="flex items-center rounded-lg border border-slate-300 bg-white px-4 dark:border-slate-700 dark:bg-slate-950">
-            <Search
-              size={20}
-              className="mr-3 text-slate-500"
-            />
+          <div>
 
-            <input
-              type="text"
-              placeholder="Search for movies..."
-              className="w-full bg-transparent py-3 text-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-slate-500"
-            />
-          </div>
-
-          <button
-            type="button"
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-6 py-3 font-semibold text-white transition hover:bg-red-700"
-          >
-            <Search size={18} />
-            Search
-          </button>
-
-        </div>
-      </div>
-    </section>
-
-    <section className="mx-auto max-w-7xl px-4 py-16">
-
-      <div className="mb-8 flex items-end justify-between gap-4">
-
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-wider text-red-500">
-            Fresh From Theaters
-          </p>
-
-          <h2 className="mt-2 text-3xl font-bold text-slate-900 dark:text-white sm:text-4xl">
-            Recent Releases
-          </h2>
-
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-            Check out movies released recently.
-          </p>
-        </div>
-
-        <Link
-          to="/movies"
-          className="hidden items-center gap-2 text-sm font-medium text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 sm:flex"
-        >
-          View All
-          <ArrowRight size={16} />
-        </Link>
-
-      </div>
-
-      {loadingRecentMovies && (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map(
-            (_, index) => (
-              <div
-                key={index}
-                className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
-              >
-                <div className="h-80 animate-pulse bg-slate-200 dark:bg-slate-800" />
-
-                <div className="space-y-3 p-5">
-                  <div className="h-6 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-                  <div className="h-4 w-2/3 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-                  <div className="h-10 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-                </div>
-              </div>
-            )
-          )}
-        </div>
-      )}
-
-      {!loadingRecentMovies &&
-        recentMoviesError && (
-          <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-6 text-center">
-            <p className="text-red-500 dark:text-red-400">
-              {recentMoviesError}
+            <p className="text-sm font-semibold uppercase tracking-wider text-red-500">
+              Fresh From Theaters
             </p>
 
-            <Link
-              to="/movies"
-              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 font-semibold text-white hover:bg-red-700"
-            >
-              Browse Movies
-              <ArrowRight size={17} />
-            </Link>
-          </div>
-        )}
+            <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl dark:text-white">
+              Recent Releases
+            </h2>
 
-      {!loadingRecentMovies &&
-        !recentMoviesError &&
-        recentMovies.length === 0 && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center dark:border-slate-800 dark:bg-slate-900">
-            <p className="text-slate-500 dark:text-slate-400">
-              No recent releases found.
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+              Check out movies released recently.
             </p>
-          </div>
-        )}
-
-      {!loadingRecentMovies &&
-        !recentMoviesError &&
-        recentMovies.length > 0 && (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-
-            {recentMovies.map((movie) => (
-              <div
-                key={movie.id}
-                className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:-translate-y-1 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
-              >
-
-                <div className="relative aspect-2/3 overflow-hidden bg-slate-200 dark:bg-slate-800">
-
-                  {movie.poster_path ? (
-                    <img
-                      src={getPosterUrl(
-                        movie.poster_path
-                      )}
-                      alt={movie.title}
-                      className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center">
-                      <span className="text-5xl">
-                        🎬
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-md bg-slate-950/90 px-2.5 py-1.5 text-sm font-semibold text-yellow-400">
-                    <Star
-                      size={14}
-                      fill="currentColor"
-                    />
-
-                    {movie.vote_average
-                      ? movie.vote_average.toFixed(1)
-                      : "N/A"}
-                  </div>
-
-                </div>
-
-                <div className="flex flex-1 flex-col p-5">
-
-                  <h3 className="line-clamp-2 min-h-14 text-xl font-bold text-slate-900 dark:text-white">
-                    {movie.title}
-                  </h3>
-
-                  <div className="mt-3 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                    <CalendarDays size={16} />
-
-                    <span>
-                      {formatReleaseDate(
-                        movie.release_date
-                      )}
-                    </span>
-                  </div>
-
-                  <p className="mt-2 text-sm uppercase text-slate-500 dark:text-slate-500">
-                    {movie.original_language ||
-                      "Unknown"}
-                  </p>
-
-                  <p className="mt-4 min-h-18 line-clamp-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                    {movie.overview ||
-                      "No description available."}
-                  </p>
-
-                  <Link
-                    to="/movies"
-                    className="mt-auto flex items-center justify-center gap-2 rounded-lg bg-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-800 transition hover:bg-red-600 hover:text-white dark:bg-slate-800 dark:text-white dark:hover:bg-red-600"
-                  >
-                    Browse Movies
-                    <ArrowRight size={16} />
-                  </Link>
-
-                </div>
-              </div>
-            ))}
 
           </div>
-        )}
-
-      <div className="mt-8 text-center sm:hidden">
-        <Link
-          to="/movies"
-          className="inline-flex items-center gap-2 text-sm font-medium text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
-        >
-          View All Movies
-          <ArrowRight size={16} />
-        </Link>
-      </div>
-
-    </section>
-
-    <section className="border-y border-slate-200 bg-slate-100/70 dark:border-slate-800 dark:bg-slate-900/50">
-
-      <div className="mx-auto max-w-7xl px-4 py-16">
-
-        <div className="mx-auto max-w-2xl text-center">
-
-          <MapPin
-            className="mx-auto text-red-500"
-            size={32}
-          />
-
-          <h2 className="mt-4 text-3xl font-bold text-slate-900 dark:text-white">
-            Find Movies Near You
-          </h2>
-
-          <p className="mt-3 text-slate-500 dark:text-slate-400">
-            Choose a theatre and discover available
-            shows and seats near your location.
-          </p>
 
           <Link
             to="/movies"
-            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-red-600 px-6 py-3 font-semibold text-white transition hover:bg-red-700"
+            className="hidden items-center gap-2 text-sm font-medium text-red-600 hover:text-red-700 sm:flex dark:text-red-400 dark:hover:text-red-300"
           >
-            Explore Movies
-            <ArrowRight size={18} />
+            View All
+            <ArrowRight size={16} />
           </Link>
 
         </div>
-      </div>
-    </section>
 
-  </div>
-);
+        {/* Loading */}
+        {loadingRecentMovies && (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+
+            {Array.from({
+              length: 4,
+            }).map(
+              (_, index) => (
+                <div
+                  key={index}
+                  className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+                >
+
+                  <div className="aspect-2/3 animate-pulse bg-slate-200 dark:bg-slate-800" />
+
+                  <div className="space-y-3 p-5">
+
+                    <div className="h-6 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+
+                    <div className="h-4 w-2/3 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+
+                    <div className="h-10 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+
+                  </div>
+
+                </div>
+              )
+            )}
+
+          </div>
+        )}
+
+        {/* Error */}
+        {!loadingRecentMovies &&
+          recentMoviesError && (
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-500/20 dark:bg-red-500/10">
+
+              <p className="text-red-600 dark:text-red-400">
+                {recentMoviesError}
+              </p>
+
+              <Link
+                to="/movies"
+                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 font-semibold text-white hover:bg-red-700"
+              >
+                Browse Movies
+                <ArrowRight size={17} />
+              </Link>
+
+            </div>
+          )}
+
+        {/* Empty */}
+        {!loadingRecentMovies &&
+          !recentMoviesError &&
+          recentMovies.length ===
+            0 && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center dark:border-slate-800 dark:bg-slate-900">
+
+              <p className="text-slate-600 dark:text-slate-400">
+                No recent releases found.
+              </p>
+
+            </div>
+          )}
+
+        {/* Movie Cards */}
+        {!loadingRecentMovies &&
+          !recentMoviesError &&
+          recentMovies.length > 0 && (
+
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+
+              {recentMovies.map(
+                (movie) => {
+
+                  const movieDetailsPath =
+                    `/movies/tmdb-${movie.id}`;
+
+                  const posterUrl =
+                    getPosterUrl(
+                      movie.poster_path
+                    );
+
+                  return (
+                    <article
+                      key={movie.id}
+                      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
+                    >
+
+                      
+                      <Link
+  to={movieDetailsPath}
+  state={{ from: "/" }}
+  className="block"
+>
+
+                        <div className="relative aspect-2/3 overflow-hidden bg-slate-200 dark:bg-slate-800">
+
+                          {posterUrl ? (
+                            <img
+                              src={posterUrl}
+                              alt={movie.title}
+                              loading="lazy"
+                              className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center">
+                              <span className="text-5xl">
+                                🎬
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Rating */}
+                          <div className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-md bg-slate-950/90 px-2.5 py-1.5 text-sm font-semibold text-yellow-400">
+
+                            <Star
+                              size={14}
+                              fill="currentColor"
+                            />
+
+                            {movie.vote_average
+                              ? movie.vote_average.toFixed(
+                                  1
+                                )
+                              : "N/A"}
+
+                          </div>
+
+                        </div>
+
+                      </Link>
+
+                      {/* Details */}
+                      <div className="flex flex-1 flex-col p-5">
+
+                        {/* Title */}
+                        <h3 className="line-clamp-2 min-h-14 text-lg font-bold text-slate-900 dark:text-white">
+                          {movie.title}
+                        </h3>
+
+                        {/* Year / Language */}
+                        <div className="mt-3 flex min-h-6 items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
+
+                          <span className="inline-flex items-center gap-1.5">
+                            <CalendarDays
+                              size={15}
+                            />
+
+                            {formatReleaseDate(
+                              movie.release_date
+                            )}
+                          </span>
+
+                        </div>
+
+                        <p className="mt-2 min-h-5 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-500">
+                          {movie.original_language ||
+                            "Unknown"}
+                        </p>
+
+                  
+                        <p className="mt-3 min-h-18 line-clamp-3 text-sm leading-6 text-slate-600 dark:text-slate-400">
+                          {movie.overview ||
+                            "No description available."}
+                        </p>
+
+                        <Link
+  to={movieDetailsPath}
+  state={{ from: "/" }}
+  className="mt-auto flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-red-700"
+>
+                          More Info
+                          <ArrowRight size={16} />
+                        </Link>
+
+                      </div>
+
+                    </article>
+                  );
+                }
+              )}
+
+            </div>
+          )}
+
+        <div className="mt-8 text-center sm:hidden">
+
+          <Link
+            to="/movies"
+            className="inline-flex items-center gap-2 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+          >
+            View All Movies
+            <ArrowRight size={16} />
+          </Link>
+
+        </div>
+
+      </section>
+
+      {/* Theatre */}
+      <section className="border-y border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-900/50">
+
+        <div className="mx-auto max-w-7xl px-4 py-16">
+
+          <div className="mx-auto max-w-2xl text-center">
+
+            <MapPin
+              className="mx-auto text-red-500"
+              size={32}
+            />
+
+            <h2 className="mt-4 text-3xl font-bold text-slate-900 dark:text-white">
+              Find Movies Near You
+            </h2>
+
+            <p className="mt-3 text-slate-600 dark:text-slate-400">
+              Choose a theatre and discover
+              available shows and seats near
+              your location.
+            </p>
+
+            <Link
+              to="/movies"
+              className="mt-6 inline-flex items-center gap-2 rounded-lg bg-red-600 px-6 py-3 font-semibold text-white transition hover:bg-red-700"
+            >
+              Explore Movies
+              <ArrowRight size={18} />
+            </Link>
+
+          </div>
+        </div>
+      </section>
+
+    </div>
+  );
 }
 
 export default Home;

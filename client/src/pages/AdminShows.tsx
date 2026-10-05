@@ -999,57 +999,95 @@ function AdminShows() {
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-300">
-                  Show Dates
+                  Show Date
                 </label>
 
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <input
-                    type="date"
-                    value={dateInput}
-                    min={
-                      new Date()
-                        .toISOString()
-                        .split("T")[0]
-                    }
-                    onChange={(event) =>
-                      setDateInput(
-                        event.target.value
-                      )
-                    }
-                    className="rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-red-500"
-                  />
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="relative w-full sm:w-auto">
+
+                    <input
+                      type="date"
+                      value={dateInput}
+                      min={
+                        new Date()
+                          .toISOString()
+                          .split("T")[0]
+                      }
+                      onChange={(event) =>
+                        setDateInput(
+                          event.target.value
+                        )
+                      }
+                      onClick={(event) => {
+                        const input =
+                          event.currentTarget;
+
+                        if (
+                          typeof input.showPicker ===
+                          "function"
+                        ) {
+                          try {
+                            input.showPicker();
+                          } catch {
+                            // Browser may block showPicker
+                            // if it is not triggered directly.
+                          }
+                        }
+                      }}
+                      className="w-full cursor-pointer appearance-auto rounded-lg border border-slate-600 bg-slate-950 px-4 py-3 font-medium text-white outline-none transition hover:border-slate-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 [color-scheme:dark] sm:w-64"
+                    />
+
+                  </div>
 
                   <button
                     type="button"
                     onClick={addDate}
-                    className="rounded-lg bg-slate-700 px-5 py-3 font-semibold transition hover:bg-slate-600"
+                    className="rounded-lg bg-red-600 px-5 py-3 font-semibold text-white transition hover:bg-red-700"
                   >
                     + Add Date
                   </button>
-                </div>
+                </div>  
+
+                <p className="mt-2 text-xs text-slate-500">
+                  Date field-a click pannina calendar
+                  open aagum. Oru date select pannitu
+                  <span className="font-semibold text-slate-300">
+                    {" "}
+                    + Add Date
+                  </span>{" "}
+                  click pannunga.
+                </p>
 
                 {selectedDates.length >
                   0 && (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {selectedDates.map(
-                      (date) => (
-                        <button
-                          key={date}
-                          type="button"
-                          onClick={() =>
-                            removeDate(
+                  <div className="mt-4">
+
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Selected Dates
+                    </p>
+
+                    <div className="flex flex-wrap gap-2">
+                      {selectedDates.map(
+                        (date) => (
+                          <button
+                            key={date}
+                            type="button"
+                            onClick={() =>
+                              removeDate(
+                                date
+                              )
+                            }
+                            className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-400 transition hover:bg-red-500/20"
+                          >
+                            {formatDateOnly(
                               date
-                            )
-                          }
-                          className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-400 transition hover:bg-red-500/20"
-                        >
-                          {formatDateOnly(
-                            date
-                          )}{" "}
-                          ×
-                        </button>
-                      )
-                    )}
+                            )}{" "}
+                            ×
+                          </button>
+                        )
+                      )}
+                    </div>
+
                   </div>
                 )}
               </div>
@@ -1475,12 +1513,12 @@ function AdminShows() {
                     <tbody>
 
                       {shows
-  .filter(
-    (show) =>
-      show.movie &&
-      typeof show.movie === "object"
-  )
-  .map((show) => {
+                        .filter(
+                          (show) =>
+                            show.movie &&
+                            typeof show.movie === "object"
+                        )
+                        .map((show) => {
                           const movieTitle =
                             getMovieTitle(
                               show.movie
@@ -1650,8 +1688,7 @@ function AdminShows() {
 
                             </tr>
                           );
-                        }
-                      )}
+                        })}
 
                     </tbody>
 

@@ -918,9 +918,7 @@ if (
           }
         );
 
-        console.log(
-          "Cancellation email sent successfully"
-        );
+       
       } catch (emailError) {
         console.error(
           "Cancellation email failed:",

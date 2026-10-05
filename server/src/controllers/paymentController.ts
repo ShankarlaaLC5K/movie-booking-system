@@ -340,9 +340,7 @@ async function sendConfirmationEmail(
         booking.totalAmount,
     });
 
-    console.log(
-      "Booking confirmation email sent successfully"
-    );
+
   } catch (error) {
     console.error(
       "Booking confirmation email failed:",

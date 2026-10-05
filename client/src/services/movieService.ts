@@ -13,6 +13,14 @@ export async function getMovies(): Promise<MovieListResponse> {
 
   return response.data;
 }
+export async function getAvailableMovies(): Promise<MovieListResponse> {
+  const response =
+    await api.get<MovieListResponse>(
+      "/movies/available"
+    );
+
+  return response.data;
+}
 
 export async function getMovieById(
   id: string

@@ -7,6 +7,7 @@ import {
   movieDetails,
   saveMovie,
   getMovies,
+  getAvailableMovies,
   getMovie,
   deleteMovie,
 } from "../controllers/movieController";
@@ -24,12 +25,13 @@ router.get("/search", searchMovie);
 
 router.get("/tmdb/:id", movieDetails);
 
+router.get("/available", getAvailableMovies);
+
 router.get("/", getMovies);
 
 router.post(
   "/save/:tmdbId",
   protect,
-  requireAdmin,
   saveMovie
 );
 

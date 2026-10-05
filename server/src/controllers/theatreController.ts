@@ -158,7 +158,7 @@ const id = String(req.params.id);
       id,
       updateData,
       {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       }
     );

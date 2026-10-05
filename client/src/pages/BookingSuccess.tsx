@@ -12,7 +12,7 @@ function BookingSuccess() {
   const { id } = useParams();
 
   return (
-    <section className="min-h-[calc(100vh-140px)] bg-slate-950 px-4 py-16 text-white">
+    <section className="min-h-[calc(100vh-140px)] bg-slate-50 px-4 py-16 text-slate-900 dark:bg-slate-950 dark:text-white">
       <div className="mx-auto max-w-2xl text-center">
 
         <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-green-500/10">
@@ -26,14 +26,14 @@ function BookingSuccess() {
           Booking Confirmed!
         </h1>
 
-        <p className="mx-auto mt-4 max-w-xl text-slate-400">
+        <p className="mx-auto mt-4 max-w-xl text-slate-600 dark:text-slate-400">
           Your movie ticket booking has been successfully
           confirmed. Your payment has been verified.
         </p>
 
         {id && (
-          <div className="mx-auto mt-7 max-w-md rounded-xl border border-slate-800 bg-slate-900 p-5">
-            <div className="flex items-center justify-center gap-2 text-red-400">
+          <div className="mx-auto mt-7 max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-center justify-center gap-2 text-red-500 dark:text-red-400">
               <Ticket size={18} />
 
               <span className="text-sm font-semibold">
@@ -41,7 +41,7 @@ function BookingSuccess() {
               </span>
             </div>
 
-            <p className="mt-3 break-all text-sm text-slate-300">
+            <p className="mt-3 break-all text-sm text-slate-600 dark:text-slate-300">
               {id}
             </p>
           </div>
@@ -51,14 +51,14 @@ function BookingSuccess() {
 
           <Link
             to="/bookings"
-            className="rounded-lg bg-red-600 px-6 py-3 font-semibold transition hover:bg-red-700"
+            className="rounded-lg bg-red-600 px-6 py-3 font-semibold text-white transition hover:bg-red-700"
           >
             My Bookings
           </Link>
 
           <Link
             to="/movies"
-            className="rounded-lg border border-slate-700 px-6 py-3 font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
+            className="rounded-lg border border-slate-300 px-6 py-3 font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
           >
             Browse Movies
           </Link>

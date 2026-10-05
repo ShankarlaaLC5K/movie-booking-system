@@ -217,7 +217,7 @@ export async function updateScreen(
       screenId,
       updateData,
       {
-        new: true,
+      returnDocument: "after",
         runValidators: true,
       }
     );

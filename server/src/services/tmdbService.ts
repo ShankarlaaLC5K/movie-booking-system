@@ -1,13 +1,24 @@
 import "dotenv/config";
 
-const TMDB_BASE_URL = "https://api.themoviedb.org/3";
+const TMDB_BASE_URL =
+  "https://api.themoviedb.org/3";
 
 const TMDB_API_TOKEN =
   process.env.TMDB_API_TOKEN ||
   process.env.TMDB_ACCESS_TOKEN;
 
-const REQUEST_TIMEOUT = 10000;
-const MAX_RETRIES = 3;
+const REQUEST_TIMEOUT = 12000;
+const MAX_RETRIES = 2;
+
+const RECENT_MOVIES_CACHE_TTL =
+  5 * 60 * 1000;
+
+let recentMoviesCache:
+  | {
+      data: TMDBMovieListResponse;
+      expiresAt: number;
+    }
+  | null = null;
 
 export interface TMDBMovie {
   id: number;
@@ -64,7 +75,8 @@ async function tmdbRequest<T>(
     options.retries ?? MAX_RETRIES;
 
   const timeout =
-    options.timeout ?? REQUEST_TIMEOUT;
+    options.timeout ??
+    REQUEST_TIMEOUT;
 
   let lastError: unknown;
 
@@ -76,52 +88,74 @@ async function tmdbRequest<T>(
     const controller =
       new AbortController();
 
-    const timeoutId = setTimeout(
-      () => controller.abort(),
-      timeout
-    );
-
-    try {
-      const response = await fetch(
-        `${TMDB_BASE_URL}${endpoint}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${TMDB_API_TOKEN}`,
-            accept: "application/json",
-          },
-          signal: controller.signal,
-        }
+    const timeoutId =
+      setTimeout(
+        () => controller.abort(),
+        timeout
       );
 
-      clearTimeout(timeoutId);
+    try {
+      const response =
+        await fetch(
+          `${TMDB_BASE_URL}${endpoint}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization:
+                `Bearer ${TMDB_API_TOKEN}`,
+              Accept:
+                "application/json",
+            },
+            signal:
+              controller.signal,
+          }
+        );
+
+      clearTimeout(
+        timeoutId
+      );
 
       if (!response.ok) {
-        const errorText =
+        const responseText =
           await response.text();
 
-        throw new Error(
-          `TMDB request failed: ${response.status} ${response.statusText} - ${errorText}`
-        );
+        const error =
+          new Error(
+            `TMDB request failed with status ${response.status}${
+              responseText
+                ? `: ${responseText}`
+                : ""
+            }`
+          );
+
+        if (
+          response.status === 401 ||
+          response.status === 403 ||
+          response.status === 404
+        ) {
+          throw error;
+        }
+
+        throw error;
       }
 
       return (await response.json()) as T;
     } catch (error) {
-      clearTimeout(timeoutId);
+      clearTimeout(
+        timeoutId
+      );
 
       lastError = error;
 
-      console.error(
-        `TMDB request failed (attempt ${attempt}/${retries}):`,
-        error
-      );
-
-      if (attempt < retries) {
-        await new Promise((resolve) =>
-          setTimeout(
-            resolve,
-            attempt * 1000
-          )
+      if (
+        attempt < retries
+      ) {
+        await new Promise(
+          (resolve) =>
+            setTimeout(
+              resolve,
+              500 * attempt
+            )
         );
       }
     }
@@ -130,16 +164,14 @@ async function tmdbRequest<T>(
   throw lastError instanceof Error
     ? lastError
     : new Error(
-        "TMDB request failed after multiple attempts"
+        "TMDB request failed"
       );
 }
 
 export async function getPopularMovies(): Promise<TMDBMovieListResponse> {
   return tmdbRequest<TMDBMovieListResponse>(
-    "/discover/movie" +
+    "/movie/popular" +
       "?region=IN" +
-      "&with_release_type=2|3" +
-      "&sort_by=popularity.desc" +
       "&page=1"
   );
 }
@@ -149,10 +181,13 @@ export async function searchMovies(
   page = 1
 ): Promise<TMDBMovieListResponse> {
   const encodedQuery =
-    encodeURIComponent(query);
+    encodeURIComponent(
+      query
+    );
 
   const safePage =
-    Number.isInteger(page) && page > 0
+    Number.isInteger(page) &&
+    page > 0
       ? page
       : 1;
 
@@ -161,7 +196,11 @@ export async function searchMovies(
       "&include_adult=false" +
       "&language=en-US" +
       `&page=${safePage}` +
-      "&region=IN"
+      "&region=IN",
+    {
+      retries: 2,
+      timeout: 10000,
+    }
   );
 }
 
@@ -169,74 +208,153 @@ export async function getMovieDetails(
   tmdbId: number
 ): Promise<TMDBMovieDetails> {
   return tmdbRequest<TMDBMovieDetails>(
-    `/movie/${tmdbId}?language=en-US`
+    `/movie/${tmdbId}?language=en-US`,
+    {
+      retries: 2,
+      timeout: 12000,
+    }
   );
 }
 
 export async function getRecentMovies(): Promise<TMDBMovieListResponse> {
-  const today = new Date();
+  if (
+    recentMoviesCache &&
+    Date.now() <
+      recentMoviesCache.expiresAt
+  ) {
+    return recentMoviesCache.data;
+  }
 
-  const startDate = new Date(today);
-  startDate.setDate(
-    today.getDate() - 30
+  const pages = [
+    1,
+    2,
+    3,
+  ];
+
+  const results: TMDBMovie[] =
+    [];
+
+  const today =
+    new Date();
+
+  const minimumDate =
+    new Date(today);
+
+  minimumDate.setDate(
+    today.getDate() - 90
   );
 
-  const endDate = new Date(today);
-  endDate.setDate(
-    today.getDate() + 30
-  );
+  const minimumDateString =
+    minimumDate
+      .toISOString()
+      .split("T")[0];
 
-  const startDateString =
-    startDate.toISOString().split("T")[0];
-
-  const endDateString =
-    endDate.toISOString().split("T")[0];
-
-  const pages = [1, 2, 3];
-
-  const responses =
-    await Promise.all(
-      pages.map((page) =>
-        tmdbRequest<TMDBMovieListResponse>(
+  for (const page of pages) {
+    try {
+      const response =
+        await tmdbRequest<TMDBMovieListResponse>(
           "/discover/movie" +
-            "?region=IN" +
-            "&with_original_language=ta" +
-            `&primary_release_date.gte=${startDateString}` +
-            `&primary_release_date.lte=${endDateString}` +
+            "?with_original_language=ta" +
             "&sort_by=primary_release_date.desc" +
-            `&page=${page}`
+            `&page=${page}`,
+          {
+            retries: 2,
+            timeout: 12000,
+          }
+        );
+
+      const filteredMovies =
+        response.results.filter(
+          (movie) => {
+            if (
+              movie.original_language !==
+              "ta"
+            ) {
+              return false;
+            }
+
+            if (
+              !movie.release_date
+            ) {
+              return false;
+            }
+
+            return (
+              movie.release_date >=
+              minimumDateString
+            );
+          }
+        );
+
+      results.push(
+        ...filteredMovies
+      );
+    } catch (error) {
+      console.error(
+        `TMDB recent movies page ${page} failed. Continuing.`,
+        error
+      );
+    }
+  }
+
+  const uniqueMovies =
+    Array.from(
+      new Map(
+        results.map(
+          (movie) => [
+            movie.id,
+            movie,
+          ]
         )
-      )
+      ).values()
     );
 
-  const results =
-    responses.flatMap(
-      (response) => response.results
-    );
+  uniqueMovies.sort(
+    (a, b) => {
+      const dateA =
+        a.release_date || "";
 
-  const uniqueMovies = Array.from(
-    new Map(
-      results.map((movie) => [
-        movie.id,
-        movie,
-      ])
-    ).values()
+      const dateB =
+        b.release_date || "";
+
+      return dateB.localeCompare(
+        dateA
+      );
+    }
   );
 
-  return {
-    page: 1,
-    results: uniqueMovies,
-    total_pages:
-      responses[0]?.total_pages || 1,
-    total_results:
-      uniqueMovies.length,
-  };
+  const response: TMDBMovieListResponse =
+    {
+      page: 1,
+      results:
+        uniqueMovies,
+      total_pages:
+        1,
+      total_results:
+        uniqueMovies.length,
+    };
+
+  if (
+    uniqueMovies.length > 0
+  ) {
+    recentMoviesCache = {
+      data: response,
+      expiresAt:
+        Date.now() +
+        RECENT_MOVIES_CACHE_TTL,
+    };
+  }
+
+  return response;
 }
 
 export function getGenreName(
   genreId: number
 ): string {
-  const genres: Record<number, string> = {
+  const genres: Record<
+    number,
+    string
+  > = {
     28: "Action",
     12: "Adventure",
     16: "Animation",
@@ -258,7 +376,10 @@ export function getGenreName(
     37: "Western",
   };
 
-  return genres[genreId] || "Other";
+  return (
+    genres[genreId] ||
+    "Other"
+  );
 }
 
 export function mapTMDBMovie(
@@ -267,20 +388,26 @@ export function mapTMDBMovie(
   return {
     tmdbId: movie.id,
     title: movie.title,
-    overview: movie.overview,
+    overview:
+      movie.overview,
     posterPath:
-      movie.poster_path || "",
+      movie.poster_path ||
+      "",
     backdropPath:
-      movie.backdrop_path || "",
+      movie.backdrop_path ||
+      "",
     releaseDate:
-      movie.release_date || "",
-    rating: movie.vote_average,
+      movie.release_date ||
+      "",
+    rating:
+      movie.vote_average,
     language:
       movie.original_language,
     genres:
       movie.genres ||
-      (movie.genre_ids || []).map(
-        getGenreName
-      ),
+      (movie.genre_ids || [])
+        .map(
+          getGenreName
+        ),
   };
 }
