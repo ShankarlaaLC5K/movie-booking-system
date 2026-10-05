@@ -169,7 +169,7 @@ function Home() {
   return (
     <div className="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-white">
 
-      {/* Hero */}
+
       <section className="relative overflow-hidden">
 
         <div className="absolute inset-0 bg-linear-to-br from-red-100 via-slate-50 to-white dark:from-red-950/40 dark:via-slate-950 dark:to-slate-950" />
@@ -222,7 +222,7 @@ function Home() {
         </div>
       </section>
 
-      {/* Search */}
+
       <section className="border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/50">
 
         <div className="mx-auto max-w-7xl px-4 py-8">
@@ -266,7 +266,7 @@ function Home() {
         </div>
       </section>
 
-      {/* Recent Releases */}
+
       <section className="mx-auto max-w-7xl px-4 py-16">
 
         <div className="mb-8 flex items-end justify-between gap-4">
@@ -297,7 +297,7 @@ function Home() {
 
         </div>
 
-        {/* Loading */}
+
         {loadingRecentMovies && (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
 
@@ -329,7 +329,7 @@ function Home() {
           </div>
         )}
 
-        {/* Error */}
+
         {!loadingRecentMovies &&
           recentMoviesError && (
             <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-500/20 dark:bg-red-500/10">
@@ -349,7 +349,7 @@ function Home() {
             </div>
           )}
 
-        {/* Empty */}
+
         {!loadingRecentMovies &&
           !recentMoviesError &&
           recentMovies.length ===
@@ -363,7 +363,7 @@ function Home() {
             </div>
           )}
 
-        {/* Movie Cards */}
+
         {!loadingRecentMovies &&
           !recentMoviesError &&
           recentMovies.length > 0 && (
@@ -411,7 +411,7 @@ function Home() {
                             </div>
                           )}
 
-                          {/* Rating */}
+              
                           <div className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-md bg-slate-950/90 px-2.5 py-1.5 text-sm font-semibold text-yellow-400">
 
                             <Star
@@ -431,15 +431,14 @@ function Home() {
 
                       </Link>
 
-                      {/* Details */}
+
                       <div className="flex flex-1 flex-col p-5">
 
-                        {/* Title */}
+  
                         <h3 className="line-clamp-2 min-h-14 text-lg font-bold text-slate-900 dark:text-white">
                           {movie.title}
                         </h3>
 
-                        {/* Year / Language */}
                         <div className="mt-3 flex min-h-6 items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
 
                           <span className="inline-flex items-center gap-1.5">
@@ -498,7 +497,7 @@ function Home() {
 
       </section>
 
-      {/* Theatre */}
+
       <section className="border-y border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-900/50">
 
         <div className="mx-auto max-w-7xl px-4 py-16">

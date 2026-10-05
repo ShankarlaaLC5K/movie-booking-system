@@ -59,10 +59,7 @@ function MyBookings() {
           requestedPage
         );
 
-      /*
-       * If current page became empty after
-       * cancellation, move to previous page.
-       */
+     
       if (
         response.bookings.length === 0 &&
         requestedPage > 1 &&
@@ -103,14 +100,6 @@ function MyBookings() {
     loadBookings(page);
   }, [page]);
 
-  /*
-   * Refresh bookings whenever the user
-   * comes back to this tab/page.
-   *
-   * This makes a newly-created pending
-   * booking appear without manually
-   * refreshing the browser.
-   */
   useEffect(() => {
     const handleFocus = () => {
       loadBookings(page);

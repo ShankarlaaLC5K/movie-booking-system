@@ -275,7 +275,7 @@ function MovieDetails() {
 
           <div className="grid items-center gap-8 md:grid-cols-[280px_1fr] lg:grid-cols-[320px_1fr]">
 
-            {/* Poster */}
+        
             <div className="mx-auto w-full max-w-xs overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
 
               {posterUrl ? (
@@ -297,7 +297,7 @@ function MovieDetails() {
 
             </div>
 
-            {/* Details */}
+
             <div>
 
               <p className="text-sm font-semibold uppercase tracking-widest text-red-500">
@@ -428,7 +428,7 @@ function MovieDetails() {
 
         <div className="grid gap-6 md:grid-cols-2">
 
-          {/* Movie Information */}
+
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
 
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">
@@ -508,7 +508,7 @@ function MovieDetails() {
             </div>
           </div>
 
-          {/* Ready to Watch */}
+   
           <div className="flex flex-col justify-between rounded-2xl border border-red-500/20 bg-red-500/5 p-6">
 
             <div>

@@ -524,7 +524,7 @@ function Checkout() {
 
       <div className="mx-auto max-w-2xl">
 
-        {/* Header */}
+
 
         <div className="mb-8">
 
@@ -556,7 +556,7 @@ function Checkout() {
 
         </div>
 
-        {/* Reservation Timer */}
+
 
         {timeLeft !== null && (
           <div
@@ -609,11 +609,11 @@ function Checkout() {
           </div>
         )}
 
-        {/* Main Card */}
+
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 dark:border-slate-800 dark:bg-slate-900">
 
-          {/* Selected Seats */}
+
 
           <div>
 
@@ -652,7 +652,7 @@ function Checkout() {
 
           <div className="my-6 border-t border-slate-200 dark:border-slate-800" />
 
-          {/* Booking Summary */}
+
 
           <div className="space-y-4">
 
@@ -706,7 +706,7 @@ function Checkout() {
 
           </div>
 
-          {/* Payment Information */}
+
 
           <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
 
@@ -741,7 +741,7 @@ function Checkout() {
 
           </div>
 
-          {/* Development Payment */}
+
 
           {import.meta.env.DEV && (
             <div className="mt-5 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4">
@@ -776,7 +776,7 @@ function Checkout() {
             </div>
           )}
 
-          {/* Real Razorpay */}
+
 
           <button
             type="button"
@@ -801,7 +801,7 @@ function Checkout() {
               : `Pay ₹${totalAmount?.toFixed(2) ?? "0.00"} with Razorpay`}
           </button>
 
-          {/* Error */}
+
 
           {error && (
             <div className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-500 dark:text-red-400">

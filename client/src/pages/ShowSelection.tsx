@@ -366,7 +366,7 @@ function ShowSelection() {
 
                 <div key={date}>
 
-                  {/* Date */}
+          
                   <div className="mb-5 flex items-center gap-3">
 
                     <CalendarDays
@@ -393,7 +393,7 @@ function ShowSelection() {
 
                           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
 
-                            {/* Theatre */}
+                
                             <div>
 
                               <div className="flex items-center gap-2">
