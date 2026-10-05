@@ -2,7 +2,7 @@ Movie Booking System
 
 A fullstack application, developed using MERN stack along with typescript. Where the user can create a booking account and experience the booking features. Admin can allocate movies, theatres, screens, shows, seats & view the reports
 
-Netlify Link https://newticketbookingbyc5k.netlify.app/
+Netlify Link : https://ticketbookingsystembyc5k.netlify.app/
 
 Features
 
