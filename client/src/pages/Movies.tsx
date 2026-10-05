@@ -254,33 +254,23 @@ function Movies() {
     }
   };
 
-  const releaseYears = useMemo(() => {
-    const years = allMovies
-      .map((movie) => {
-        if (!movie.releaseDate) {
-          return null;
-        }
+ const releaseYears = useMemo(() => {
+  const currentYear =
+    new Date().getFullYear();
 
-        const year =
-          new Date(
-            movie.releaseDate
-          ).getFullYear();
+  const firstCinemaYear = 1895;
 
-        return Number.isNaN(year)
-          ? null
-          : year;
-      })
-      .filter(
-        (year): year is number =>
-          year !== null
-      );
-
-    return Array.from(
-      new Set(years)
-    ).sort(
-      (a, b) => b - a
-    );
-  }, [allMovies]);
+  return Array.from(
+    {
+      length:
+        currentYear -
+        firstCinemaYear +
+        1,
+    },
+    (_, index) =>
+      currentYear - index
+  );
+}, []);
 
   const genres = useMemo(() => {
     const genreSet =
@@ -585,7 +575,7 @@ function Movies() {
                 (movie) => (
                   <article
                     key={movie.id}
-                    className="flex h-full min-h-[650px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+                    className="flex h-full min-h-162.5 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
                   >
                     <Link
                       to={`/movies/tmdb-${movie.id}`}
@@ -594,7 +584,7 @@ function Movies() {
                       }}
                       className="block shrink-0"
                     >
-                      <div className="aspect-[2/3] overflow-hidden bg-slate-200 dark:bg-slate-800">
+                      <div className="aspect-2/3 overflow-hidden bg-slate-200 dark:bg-slate-800">
                         {movie.poster_path ? (
                           <img
                             src={getPosterUrl(
@@ -616,7 +606,7 @@ function Movies() {
                     </Link>
 
                     <div className="flex flex-1 flex-col p-5">
-                      <div className="flex min-h-[52px] items-start justify-between gap-3">
+                      <div className="flex min-h-13 items-start justify-between gap-3">
                         <h3 className="line-clamp-2 text-lg font-bold leading-6">
                           {movie.title}
                         </h3>
@@ -635,7 +625,7 @@ function Movies() {
                         </span>
                       </div>
 
-                      <div className="mt-2 min-h-[44px]">
+                      <div className="mt-2 min-h-11">
                         {movie.release_date && (
                           <p className="text-sm text-slate-500">
                             {new Date(
@@ -650,7 +640,7 @@ function Movies() {
                         </p>
                       </div>
 
-                      <p className="mt-3 h-[72px] overflow-hidden text-sm leading-6 text-slate-600 dark:text-slate-400">
+                      <p className="mt-3 h-18 overflow-hidden text-sm leading-6 text-slate-600 dark:text-slate-400">
                         {movie.overview ||
                           "No description available."}
                       </p>
@@ -660,7 +650,7 @@ function Movies() {
                         state={{
                           from: "/movies",
                         }}
-                        className="mt-auto flex min-h-[44px] items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-red-700"
+                        className="mt-auto flex min-h-11 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-red-700"
                       >
                         More Info
                         <ArrowRight
@@ -763,7 +753,7 @@ function Movies() {
                           to={`/movies/${movie._id}`}
                           className="block shrink-0"
                         >
-                          <div className="aspect-[2/3] overflow-hidden bg-slate-200 dark:bg-slate-800">
+                          <div className="aspect-2/3 overflow-hidden bg-slate-200 dark:bg-slate-800">
                             {posterUrl ? (
                               <img
                                 src={posterUrl}
@@ -783,7 +773,7 @@ function Movies() {
                         </Link>
 
                         <div className="flex flex-1 flex-col p-5">
-                          <div className="flex min-h-[52px] items-start justify-between gap-3">
+                          <div className="flex min-h-13 items-start justify-between gap-3">
                             <h3 className="line-clamp-2 text-lg font-bold leading-6">
                               {movie.title}
                             </h3>
@@ -826,7 +816,7 @@ function Movies() {
 
                           <Link
                             to={`/movies/${movie._id}`}
-                            className="mt-auto block min-h-[44px] rounded-lg bg-red-600 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-red-700"
+                            className="mt-auto block min-h-11 rounded-lg bg-red-600 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-red-700"
                           >
                             View Movie
                           </Link>
