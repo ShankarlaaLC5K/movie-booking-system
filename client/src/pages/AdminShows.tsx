@@ -1034,7 +1034,7 @@ function AdminShows() {
                           }
                         }
                       }}
-                      className="w-full cursor-pointer appearance-auto rounded-lg border border-slate-600 bg-slate-950 px-4 py-3 font-medium text-white outline-none transition hover:border-slate-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 [color-scheme:dark] sm:w-64"
+                      className="w-full cursor-pointer appearance-auto rounded-lg border border-slate-600 bg-slate-950 px-4 py-3 font-medium text-white outline-none transition hover:border-slate-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 'scheme-dark' sm:w-64"
                     />
 
                   </div>
